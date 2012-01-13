@@ -398,14 +398,14 @@ sub determine_most_recent_page_number()
 	my ($no_list, $prev_no_list) = @_;
 	my $mru_index = -1;
 
-    print "MRU @{$no_list}, @{$prev_no_list}\n";
+    #print "MRU @{$no_list}, @{$prev_no_list}\n";
 	#print scalar(@{$prev_no_list});
 	if (@{$prev_no_list})
 	{
 		my $list_size = scalar(@{$no_list});
 		foreach my $x (0 .. $list_size-1)
 		{
-             print "comparing... $x: $no_list->[$x]:$prev_no_list->[$x]\n";
+            #print "comparing... $x: $no_list->[$x]:$prev_no_list->[$x]\n";
 			if ($no_list->[$x] != $prev_no_list->[$x])
 			{
 				$mru_index = $x;
