@@ -236,7 +236,7 @@ sub serialize()
 		print OUT $image;
 		close(OUT); 
 
-		print "$filename_p(" . (length($image)) . ")is saved\n\n" if $opt{debug};
+		print "$filename(" . (length($image)) . ")is saved\n";# if $opt{debug};
 		return 1;
 	}
 
@@ -279,7 +279,9 @@ sub get_dcinside_address
 	my $gallery_name = shift;
 
     my $html_url;
-    if ($gallery_name eq "game_classic") {
+    if (($gallery_name eq "game_classic") or
+    	($gallery_name eq "leagueoflegends"))
+		 {
 	    $html_url = "http://gall.dcgame.in/list.php?id=" . $gallery_name;
     } else {
 	    $html_url = "http://gall.dcinside.com/list.php?id=" . $gallery_name;
@@ -293,7 +295,7 @@ sub monitor_and_get()
 	my $gallery_name = shift;
 	my $no = -2;
 	my $prev_no = -1;
-	my $no_index = -1;
+    my $no_index = -1;
 	my @prev_list = ();
 
 	# to print in status subroutine
@@ -324,7 +326,7 @@ sub monitor_and_get()
 			else
 			{
 				print "[$gallery_name] No new article. wait more...\n" if $opt{debug};
-                print "$gallery_name : $statistic{$gallery_name}";
+                print "peeping at $gallery_name...\n" if $opt{debug};
 				sleep(5);
 			} 
 			next;
@@ -349,8 +351,10 @@ sub monitor_and_get()
 		{
 			$statistic{$gallery_name} += $image_count;
 			#print "|$gallery_name]\t\t" . "#" x $image_count . "\tTotal : $statistic{$gallery_name}\n";
-			print $gallery_name . "    : " . "+" x $image_count . "\n";
+			print $gallery_name . "/$prev_no] :" . "+" x $image_count . "\n";
 		}
+
+        $image_count = 0;   # reset
 
 		sleep($sleep_time); 
 	}
