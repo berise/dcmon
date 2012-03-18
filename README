@@ -1,9 +1,14 @@
-Crawl images in dcinside.com galleries(article board)
+Crawl images galleries(article board) in dcinside.com 
 This is perl version. please see dcmon.py for python version.
 
-This program requies several CPAN modules like LWP, Encode, and WWW:Mechanize.
-perl par is used to PAR pack. so please proper install from CPAN.
+This script is originally written with python, but for some reason changed to perl
+
+<strike>This program requies several CPAN modules like LWP, Encode, and WWW:Mechanize.</strike>
+This script doesn't requires any modules.
+
+If you need perl-bundled executable, install par from CPAN;
 
 
 usages is simple.
-Just edit dcmon.cfg for proper gallery name and run dcmon.pl
+Just edit dcmon.cfg for proper gallery name(if you need names of galleries then please go to dcinside.com)
+and run dcmon.pl.
