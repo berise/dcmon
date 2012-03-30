@@ -169,6 +169,8 @@ sub save_images
 	#print "# of files : ($file_count), # of links : ($link_count)\n" if $opt{debug};
 	foreach my $i  (0 .. $#filenames)
 	{
+    	my $filename_p = encode('cp949', $filenames[$i]);
+        print "  $filename_p";
 		$image_count +=  &serialize($filenames[$i], $links[$i]);
 	}
 
@@ -214,7 +216,7 @@ sub extract_links()
 #
 # Windows XP에서는 cp949로 변환해야 콘솔창에서 한글이 보인다.
 # Vista/7에서는 utf-8을 써도 무방할 듯...
-sub serialize()
+sub serialize
 {
 	my ($filename, $link) = @_;
 	my $filename_p = encode('cp949', $filename);
@@ -236,7 +238,7 @@ sub serialize()
 		print OUT $image;
 		close(OUT); 
 
-		print "$filename(" . (length($image)) . ")is saved\n";# if $opt{debug};
+		print "$filename_p(" . (length($image)) . ")is saved\n\n" if $opt{debug};
 		return 1;
 	}
 
@@ -305,6 +307,7 @@ sub monitor_and_get()
 
 	while(1)
 	{
+	    my $image_count = 0;
 		my @new_list = &get_recent_number_list($gallery_name); 
 
 #		if (@new_list){ foreach my $i (@new_list[0..6]) { print "$i "; } }
@@ -351,7 +354,7 @@ sub monitor_and_get()
 		{
 			$statistic{$gallery_name} += $image_count;
 			#print "|$gallery_name]\t\t" . "#" x $image_count . "\tTotal : $statistic{$gallery_name}\n";
-			print $gallery_name . "/$prev_no] :" . "+" x $image_count . "\n";
+			print " : $gallery_name/$new_list[$no_index]:" . "+" x $image_count . "\n";
 		}
 
         $image_count = 0;   # reset
