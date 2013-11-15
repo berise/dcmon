@@ -28,21 +28,47 @@ my $gallery_name;
 my $page_from;
 my $page_to;
 my $directory_name = "call_setup_directory";
-my %opt = ( "debug"=>0 );
+my %opt = ( "debug"=>1 );
 my %statistic = ();
 
 # to make STDOUT flush immediately
 $| = 1;
 
 # tests
-#@a = (3342, 1,2,3,4);
-#@b = (3342, 1,2,4,5);
-#&determine_most_recent_page_number(\@a, \@b);
-#&get_recent_number_list("game_classic"); 
-#my @gall_list = ("game_classic", "baseball_new", "comedy_new", "yeonpyeongdo"); 
-#&run_dcmon_with_list(@gall_list);
+test_1114();
+exit;
 
-#print $opt{"debug"} if $opt{debug};
+
+sub test_1114
+{
+	my $no = -2;
+	my $prev_no = -1;
+    my $no_index = -1;
+	my @prev_list = ();
+    my $gallery_name = "pad";
+
+	# to print in status subroutine
+	$statistic{$gallery_name} = 0;
+	my $image_count = 0;
+
+	setup_directory($gallery_name);
+
+    my $url = get_dcinside_address($gallery_name);
+    $url =  $url . "&no=218920&page=1";
+
+    # save images and add to count
+    $image_count = save_images($url);
+
+    if ($image_count > 0)
+    {
+        $statistic{$gallery_name} += $image_count;
+        print "|$gallery_name]\t\t" . "#" x $image_count . "\tTotal : $statistic{$gallery_name}\n";
+        print " : $gallery_name/218920:" . "+" x $image_count . "\n";
+    }
+
+
+}
+
 
 
 &show_usage;
@@ -115,7 +141,7 @@ sub doit()
 	my ($gallery_name, $page_from, $page_to) = @_;
 	foreach my $page ($page_from .. $page_to)
 	{
-		my $url = "http://gall.dcinside.com/list.php?id=" . $gallery_name . "&no=" . $page . "&page=1&bbs=";
+		my $url = "http://gall.dcinside.com/list.php?id=" . $gallery_name . "&no=" . $page . "&page=1";
 
 		print "$url\n";
 		&save_images($url);
@@ -156,22 +182,22 @@ sub show_usage()
 sub save_images
 {
 	my $url = shift;
-#$html_contents = &get_html_contents("http://gall.dcinside.com/list.php?id=game_classic&no=409129&page=1&bbs=");
+#$html_contents = &get_html_contents("http://gall.dcinside.com/list.php?id=game_classic&no=409129&page=1");
 	my $html_contents = &get_html_contents($url);
 
-	my @filenames =  &extract_filenames($html_contents);
+	my @filenames =  extract_filenames($html_contents);
 	my @links =  &extract_links($html_contents);
 
 	my $file_count = @filenames;
 	my $link_count = @links;
 	my $image_count = 0;
 
-	#print "# of files : ($file_count), # of links : ($link_count)\n" if $opt{debug};
-	foreach my $i  (0 .. $#filenames)
+	print "# of files : ($file_count), # of links : ($link_count)\n" if $opt{debug};
+	foreach my $i (0 .. $#filenames)
 	{
     	my $filename_p = encode('cp949', $filenames[$i]);
-        print "  $filename_p";
-		$image_count +=  &serialize($filenames[$i], $links[$i]);
+        print " - download $filename_p\n";
+		$image_count +=  serialize($filenames[$i], $links[$i]);
 	}
 
 	return $image_count;
@@ -187,15 +213,15 @@ sub get_html_contents()
 	return $h_contents;
 }
 
-sub extract_filenames()
+sub extract_filenames
 {
 	my $html_contents = shift;
 
-	my $pattern = "<a class='txt03'.*?>(.*?.*?)<\/a>";
+	my $pattern = "<li class=\"icon_pic\"><a href=.*>(.*?.*?)<\/a>";
 	my @files = $html_contents =~ /$pattern/gi;
 
-	#foreach my $file (@files) { print "extract_filenames : $file\n" if $opt{debug}; } 
-    print "Image : $#files found\n" if $opt{debug};
+	foreach my $file (@files) { print "extract_filenames : $file\n" if $opt{debug}; } 
+    #print "Attached Image filename : @files\n" if $opt{debug};
 	return @files;
 }
 
@@ -204,10 +230,11 @@ sub extract_links()
 {
 	my $html_contents = shift;
 
-	my $pattern = "src='(http://dcimg1.dcinside.com/viewimage.php?.*?)'";
+    #my $pattern = "src='(http://dcimg1.dcinside.com/viewimage.php?.*?)'";
+	my $pattern = "<li class=\"icon_pic\"><a href=\"(.*)\">.*?.*?<\/a>";
 	my @links = $html_contents =~ /$pattern/gi;
 
-	#foreach my $link (@links) { print "extract_links : Looks good\n" if $opt{debug}; } # $links
+	foreach my $link (@links) { print "extract_links : @links\n" if $opt{debug}; } # $links
 
 	return @links;
 }
@@ -221,7 +248,7 @@ sub serialize
 	my ($filename, $link) = @_;
 	my $filename_p = encode('cp949', $filename);
 
-	print "Save $filename_p in $directory_name.\n" if $opt{debug};
+	print "Save $filename_p in $directory_name\n" if $opt{debug};
 
 	# 저장할 위치 지정
     $filename_p = $directory_name . "/" . $filename_p; 
@@ -281,13 +308,7 @@ sub get_dcinside_address
 	my $gallery_name = shift;
 
     my $html_url;
-    if (($gallery_name eq "game_classic") or
-    	($gallery_name eq "leagueoflegends"))
-		 {
-	    $html_url = "http://gall.dcgame.in/list.php?id=" . $gallery_name;
-    } else {
-	    $html_url = "http://gall.dcinside.com/list.php?id=" . $gallery_name;
-    }
+    $html_url = "http://gall.dcinside.com/board/view/?id=" . $gallery_name;
 
     return $html_url;
 }
@@ -310,21 +331,21 @@ sub monitor_and_get()
 	    my $image_count = 0;
 		my @new_list = &get_recent_number_list($gallery_name); 
 
-#		if (@new_list){ foreach my $i (@new_list[0..6]) { print "$i "; } }
-#		print "\n";
-#		if (@prev_list){ foreach my $i (@prev_list[0..6]) { print "$i "; } }
-#		print "\n"; 
+		if (@new_list){ foreach my $i (@new_list[0..6]) { print "$i "; } }
+		print "\n";
+		if (@prev_list){ foreach my $i (@prev_list[0..6]) { print "$i "; } }
+		print "\n"; 
 
 		# MRU 판단
 		if ($no_index == -1)
 		{ 
-			print "[$gallery_name] Guessing new article...\n" if $opt{debug};
+			print "[$gallery_name] compare article numbers to get MRU...\n" if $opt{debug};
 			$no_index = &determine_most_recent_page_number(\@new_list, \@prev_list);
 			@prev_list = @new_list;
 
 			if ($no_index != -1) 
 			{
-				print "[$gallery_name] New article page : $no_index\n" if $opt{debug};
+				print "[$gallery_name] New article page no: $no_index\n" if $opt{debug};
 			}
 			else
 			{
@@ -340,7 +361,7 @@ sub monitor_and_get()
 			print "[$gallery_name] fetch a page : $new_list[$no_index]\n" if $opt{debug}; 
 
             my $url = get_dcinside_address($gallery_name);
-			$url =  $url . "&no=" . $new_list[$no_index] . "&page=1&bbs=";
+			$url =  $url . "&no=" . $new_list[$no_index] . "&page=1";
 
 			# save images and add to count
 			$image_count = save_images($url);
@@ -353,7 +374,7 @@ sub monitor_and_get()
 		if ($image_count > 0)
 		{
 			$statistic{$gallery_name} += $image_count;
-			#print "|$gallery_name]\t\t" . "#" x $image_count . "\tTotal : $statistic{$gallery_name}\n";
+			print "|$gallery_name]\t\t" . "#" x $image_count . "\tTotal : $statistic{$gallery_name}\n";
 			print " : $gallery_name/$new_list[$no_index]:" . "+" x $image_count . "\n";
 		}
 
@@ -370,6 +391,7 @@ sub get_recent_number_list()
 
     # dcinside는 페이지 이동이 잦음
     $html_url = get_dcinside_address($gallery_name);
+    print $html_url if $opt{debug};
 
     my $mech = WWW::Mechanize->new();
 
@@ -383,16 +405,18 @@ sub get_recent_number_list()
     else {
         print STDERR $response->status_line, "\n";
     }
-	#my $html_contents = &get_html_contents($html_url);
+	my $html_contents = &get_html_contents($html_url);
+    #print $html_contents;
 
     #
-	#$html_contents = "<a href=/list.php?id=game_classic&no=412061&page=1&bbs=";
+	#$html_contents = "<a href=/board/view/?id=game_classic&no=412061&page=1&bbs=";
 	# (jpg|~~~)*?은 확장자가 없어도 이름 추출이 가능함 "99aa0--a"
-	my $pattern = "list.php\\?id=" . $gallery_name . "&no=(\\d+)&page=\\d+&bbs=";#/.*?<\/a>";
+    # scrap을 사용하는 것이 좀 더 깨끗해질 것!
+	my $pattern = "id=" . $gallery_name . "&no=(\\d+)&page=\\d+";#/.*?<\/a>";
 	my @list = $response->decoded_content =~ /$pattern/gi;
 
-#print @list;
-    #foreach my $i (@list) { print "$i "; } print "\n";
+    #print @list;
+    #foreach my $i (@list) { print "$i " if $opt{debug}; } print "\n";
 
 	return @list;
 }
