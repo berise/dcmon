@@ -16,10 +16,15 @@
 use strict;
 use warnings;
 use utf8;
+
 use LWP::Simple;
 use Encode;
 use WWW::Mechanize;
-#use WWW::Mechanize::Firefox;
+
+use URI;
+use Web::Scraper;
+use Data::Dumper;
+
 
 #  print "This is libwww-perl-$LWP::VERSION\n";
 
@@ -34,11 +39,21 @@ my %statistic = ();
 # to make STDOUT flush immediately
 $| = 1;
 
+
+my $TEST = 1;
 # tests
-test_1114();
-exit;
+if ($TEST == 1)
+{
+    test_1114();
+    exit;
+}
+else
+{
+    show_usage();
+    run_dcmon_with_cfg();
+}
 
-
+#http://gall.dcinside.com/board/view/?id=pad&no=227106&page=1
 sub test_1114
 {
 	my $no = -2;
@@ -54,31 +69,60 @@ sub test_1114
 	setup_directory($gallery_name);
 
     my $url = get_dcinside_address($gallery_name);
-    $url =  $url . "&no=218920&page=1";
+    $url =  $url . "&no=227231&page=1";
 
     # save images and add to count
-    $image_count = save_images($url);
-
-    if ($image_count > 0)
-    {
-        $statistic{$gallery_name} += $image_count;
-        print "|$gallery_name]\t\t" . "#" x $image_count . "\tTotal : $statistic{$gallery_name}\n";
-        print " : $gallery_name/218920:" . "+" x $image_count . "\n";
-    }
-
-
+    $image_count = find_and_get_images($url);
 }
 
 
+# get filenames
+sub scrape_href_links
+{
+    my $html_content = shift;
 
-&show_usage;
-&run_dcmon_with_cfg();
+    my $html_element = scraper {
+        process ".icon_pic > a", "html[]" => 'HTML', "text[]" => 'TEXT';
+    };
 
+    # get html text based on div class="con_substance"
+    my $res = $html_element->scrape( $html_content );
+
+    #print Dumper $res;
+
+    # return a reference to image links
+    return $res->{text};
+}
+
+# parse html with WWW:Scraper and extract image links
+sub scrape_links
+{
+    my $html_content = shift;
+
+    my $html_element = scraper {
+        process ".con_substance", html => 'HTML';
+    };
+
+    # [] for plural
+    my $img_element = scraper {
+        process "img", "src[]" => '@src';
+    };
+
+    # get html text based on div class="con_substance"
+    my $res = $html_element->scrape( $html_content );
+
+    # get img src link which shows real image (in javascript pop window)
+    my $res2 = $img_element->scrape( $res->{html});
+
+#    print Dumper $res;
+#    print Dumper $res2;
+    return $res2->{src};
+}
+
+
+###
 sub run_dcmon_with_cfg()
 {
-
-
-
 	open(CFG_IN, "<$CFG_DCMON");
 	my @lines = <CFG_IN>;
 	close(CFG_IN); 
@@ -90,10 +134,7 @@ sub run_dcmon_with_cfg()
 		#print $gallery;
 		&run_dcmon_with_list($gallery);
 	}
-
 }
-
-
 
 sub run_dcmon_with_list()
 {
@@ -126,46 +167,6 @@ sub run_dcmon_with_given_name()
 }
 
 
-sub run_dcmon()
-{
-	my $gallery_name = &process_arguments; 
-
-	&setup_directory($gallery_name);
-
-	# monitor and get
-	&monitor_and_get($gallery_name);
-}
-
-sub doit()
-{ 
-	my ($gallery_name, $page_from, $page_to) = @_;
-	foreach my $page ($page_from .. $page_to)
-	{
-		my $url = "http://gall.dcinside.com/list.php?id=" . $gallery_name . "&no=" . $page . "&page=1";
-
-		print "$url\n";
-		&save_images($url);
-	} 
-}
-
-sub process_arguments()
-{
-	if ( $#ARGV == 0 )
-	{
-		$gallery_name = $ARGV[0];
-
-		return $gallery_name;
-#	print "$gallery_name, $page_from, $page_to";
-
-#&doit($gallery_name, $page_from, $page_to);
-
-	}
-	else
-	{
-		&show_usage;
-	}
-}
-
 sub show_usage()
 {
 	print "dcmon: A small utility to monitor your favorite galleries.\n";
@@ -175,32 +176,33 @@ sub show_usage()
 }
 
 
-
-
 # crawl given page
 # TI : size of array
-sub save_images
+sub find_and_get_images
 {
 	my $url = shift;
-#$html_contents = &get_html_contents("http://gall.dcinside.com/list.php?id=game_classic&no=409129&page=1");
 	my $html_contents = &get_html_contents($url);
+    #print $html_contents;
 
-	my @filenames =  extract_filenames($html_contents);
-	my @links =  &extract_links($html_contents);
 
-	my $file_count = @filenames;
-	my $link_count = @links;
+	my $h_filenames =  scrape_href_links($html_contents);
+	my $h_links =  scrape_links($html_contents);
+
+	my $file_count = @{$h_filenames};
+	my $link_count = @{$h_links};
 	my $image_count = 0;
 
 	print "# of files : ($file_count), # of links : ($link_count)\n" if $opt{debug};
-	foreach my $i (0 .. $#filenames)
+	for(my $i = 0; $i < $file_count; $i++)
 	{
-    	my $filename_p = encode('cp949', $filenames[$i]);
-        print " - download $filename_p\n";
-		$image_count +=  serialize($filenames[$i], $links[$i]);
+    	my $filename_p;
+        $filename_p = encode('cp949', $h_filenames->[$i]);
+        #print " - download $filename_p\n";
+        print "$h_filenames->[$i], $h_links->[$i]\n" if $opt{debug};
+		download_and_save_as($h_filenames->[$i], $h_links->[$i]);
 	}
 
-	return $image_count;
+	return $file_count;
 }
 	
 
@@ -243,12 +245,11 @@ sub extract_links()
 #
 # Windows XP에서는 cp949로 변환해야 콘솔창에서 한글이 보인다.
 # Vista/7에서는 utf-8을 써도 무방할 듯...
-sub serialize
+sub download_and_save_as
 {
 	my ($filename, $link) = @_;
 	my $filename_p = encode('cp949', $filename);
 
-	print "Save $filename_p in $directory_name\n" if $opt{debug};
 
 	# 저장할 위치 지정
     $filename_p = $directory_name . "/" . $filename_p; 
@@ -256,20 +257,25 @@ sub serialize
     # 위치를 고정하여 저장한다. .. 파일 보기가 편해서...
 	#$filename_p = "dcmon/temp/" . $filename_p; 
 
-	my $image = &get_html_contents($link);
+#   my $cmd_wget = "wget \"$link\" -o $filename_p";
+#   print "Execute $cmd_wget\n";
 
-	if (defined $image)
-	{
-		open(OUT, ">$filename_p");
-		binmode OUT;
-		print OUT $image;
-		close(OUT); 
+#   # download with wget
+#   system($cmd_wget);
 
-		print "$filename_p(" . (length($image)) . ")is saved\n\n" if $opt{debug};
-		return 1;
-	}
+    #
+    my $image = &get($link);
 
-	return 0;
+    if (defined $image)
+    {
+        open(OUT, ">$filename_p");
+        binmode OUT;
+        print OUT $image;
+        close(OUT); 
+
+        my $filesize = -s $filename_p if -e $filename_p;
+        print " + $directory_name/$filename_p($filesize Bytes)\n" if $opt{debug};
+    }
 }
 
 
@@ -364,21 +370,21 @@ sub monitor_and_get()
 			$url =  $url . "&no=" . $new_list[$no_index] . "&page=1";
 
 			# save images and add to count
-			$image_count = save_images($url);
+			$image_count = find_and_get_images($url);
 			$prev_no = $new_list[$no_index]; 
 		}
 
 		# sleep between 3 ~ 11 seconds
 		my $sleep_time = 3 + int(rand(8));
 		
-		if ($image_count > 0)
-		{
-			$statistic{$gallery_name} += $image_count;
-			print "|$gallery_name]\t\t" . "#" x $image_count . "\tTotal : $statistic{$gallery_name}\n";
-			print " : $gallery_name/$new_list[$no_index]:" . "+" x $image_count . "\n";
-		}
-
-        $image_count = 0;   # reset
+#	if ($image_count > 0)
+#	{
+#		$statistic{$gallery_name} += $image_count;
+#		print "|$gallery_name]\t\t" . "#" x $image_count . "\tTotal : $statistic{$gallery_name}\n";
+#		print " : $gallery_name/$new_list[$no_index]:" . "+" x $image_count . "\n";
+#	}
+#
+#    $image_count = 0;   # reset
 
 		sleep($sleep_time); 
 	}
@@ -395,7 +401,7 @@ sub get_recent_number_list()
 
     my $mech = WWW::Mechanize->new();
 
-    #$mech->agent_alias('Windows Mozilla');
+    $mech->agent_alias('Windows Mozilla');
 
     my $response = $mech->get($html_url);
 
