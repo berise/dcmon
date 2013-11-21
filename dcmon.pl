@@ -40,7 +40,7 @@ my %statistic = ();
 $| = 1;
 
 
-my $TEST = 1;
+my $TEST = 0;
 # tests
 if ($TEST == 1)
 {
