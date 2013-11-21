@@ -188,6 +188,11 @@ sub find_and_get_images
 	my $h_filenames =  scrape_href_links($html_contents);
 	my $h_links =  scrape_links($html_contents);
 
+    if (!defined($h_filenames))  # http://zzbang.dcinside.com/pad_temp.jpg is basic image for an article without any image attached
+    {
+        return ;
+    }
+
 	my $file_count = @{$h_filenames};
 	my $link_count = @{$h_links};
 	my $image_count = 0;
