@@ -54,6 +54,7 @@ else
 }
 
 #http://gall.dcinside.com/board/view/?id=pad&no=227106&page=1
+# page 228546
 sub test_1114
 {
 	my $no = -2;
@@ -69,7 +70,8 @@ sub test_1114
 	setup_directory($gallery_name);
 
     my $url = get_dcinside_address($gallery_name);
-    $url =  $url . "&no=227231&page=1";
+    $url =  $url . "&no=228546&page=1";
+    print $url;
 
     # save images and add to count
     $image_count = find_and_get_images($url);
@@ -121,7 +123,7 @@ sub scrape_links
 
 
 ###
-sub run_dcmon_with_cfg()
+sub run_dcmon_with_cfg
 {
 	open(CFG_IN, "<$CFG_DCMON");
 	my @lines = <CFG_IN>;
@@ -132,11 +134,11 @@ sub run_dcmon_with_cfg()
         next if $gallery =~ /^#/;
 		chomp $gallery;
 		#print $gallery;
-		&run_dcmon_with_list($gallery);
+		run_dcmon_with_list($gallery);
 	}
 }
 
-sub run_dcmon_with_list()
+sub run_dcmon_with_list
 {
 	my $gallery_name = shift;
 #	for my $i (@gall_list)
@@ -147,7 +149,7 @@ sub run_dcmon_with_list()
 		my $pid = fork(); 
 		if ($pid == 0)
 		{
-			&run_dcmon_with_given_name($gallery_name);
+			run_dcmon_with_given_name($gallery_name);
 			exit;
 		} 
 	}
@@ -155,19 +157,19 @@ sub run_dcmon_with_list()
 
 
 # run dcmon with given name
-sub run_dcmon_with_given_name()
+sub run_dcmon_with_given_name
 {
 	my $gallery_name = shift;
 
 	#print $gallery_name;
-	&setup_directory($gallery_name);
+	setup_directory($gallery_name);
 
 	# monitor and get
-	&monitor_and_get($gallery_name);
+	monitor_and_get($gallery_name);
 }
 
 
-sub show_usage()
+sub show_usage
 {
 	print "dcmon: A small utility to monitor your favorite galleries.\n";
 	print "       Edit dcmon.cfg and run\n";
@@ -181,7 +183,7 @@ sub show_usage()
 sub find_and_get_images
 {
 	my $url = shift;
-	my $html_contents = &get_html_contents($url);
+	my $html_contents = get_html_contents($url);
     #print $html_contents;
 
 
@@ -211,10 +213,10 @@ sub find_and_get_images
 }
 	
 
-sub get_html_contents()
+sub get_html_contents
 {
-	my $url = shift;
-
+    my $url = shift;
+    #print "[get_html_contents] $url\n";
 	my $h_contents = get($url);
 
 	return $h_contents;
@@ -233,7 +235,7 @@ sub extract_filenames
 }
 
 
-sub extract_links()
+sub extract_links
 {
 	my $html_contents = shift;
 
@@ -241,7 +243,10 @@ sub extract_links()
 	my $pattern = "<li class=\"icon_pic\"><a href=\"(.*)\">.*?.*?<\/a>";
 	my @links = $html_contents =~ /$pattern/gi;
 
-	foreach my $link (@links) { print "extract_links : @links\n" if $opt{debug}; } # $links
+	foreach my $link (@links) # $links
+    {
+        print "extract_links : @links\n" if $opt{debug};
+    }
 
 	return @links;
 }
@@ -255,6 +260,7 @@ sub download_and_save_as
 	my ($filename, $link) = @_;
 	my $filename_p = encode('cp949', $filename);
 
+    my $HAVE_WGET = 0;
 
 	# 저장할 위치 지정
     $filename_p = $directory_name . "/" . $filename_p; 
@@ -262,29 +268,34 @@ sub download_and_save_as
     # 위치를 고정하여 저장한다. .. 파일 보기가 편해서...
 	#$filename_p = "dcmon/temp/" . $filename_p; 
 
-#   my $cmd_wget = "wget \"$link\" -o $filename_p";
-#   print "Execute $cmd_wget\n";
-
-#   # download with wget
-#   system($cmd_wget);
-
-    #
-    my $image = &get($link);
-
-    if (defined $image)
+    if ($HAVE_WGET eq 1)
     {
-        open(OUT, ">$filename_p");
-        binmode OUT;
-        print OUT $image;
-        close(OUT); 
+        my $cmd_wget = "wget \"$link\"";
+        print "Execute $cmd_wget\n";
 
-        my $filesize = -s $filename_p if -e $filename_p;
-        print " + $directory_name/$filename_p($filesize Bytes)\n" if $opt{debug};
+        # download with wget
+        system($cmd_wget);
     }
+    else
+    {
+        #
+        my $image = get($link);
+
+        if (defined $image)
+        {
+            open(OUT, ">$filename_p");
+            binmode OUT;
+            print OUT $image;
+            close(OUT); 
+        }
+    }
+
+    my $filesize = -s $filename_p if -e $filename_p;
+    print " + $directory_name/$filename_p($filesize Bytes)\n" if $opt{debug};
 }
 
 
-sub setup_directory()
+sub setup_directory
 {
 	my ($gallery_name, $end) = @_;
 	my $dcmon_dir = "dcmon";
@@ -324,7 +335,7 @@ sub get_dcinside_address
     return $html_url;
 }
 
-sub monitor_and_get()
+sub monitor_and_get
 {
 	my $gallery_name = shift;
 	my $no = -2;
@@ -340,36 +351,36 @@ sub monitor_and_get()
 	while(1)
 	{
 	    my $image_count = 0;
-		my @new_list = &get_recent_number_list($gallery_name); 
+		my @new_list = get_recent_number_list($gallery_name); 
 
-		if (@new_list){ foreach my $i (@new_list[0..6]) { print "$i "; } }
-		print "\n";
-		if (@prev_list){ foreach my $i (@prev_list[0..6]) { print "$i "; } }
-		print "\n"; 
+		print "[$gallery_name] Article List : \n" if $opt{debug};
+
+		if (@new_list){ foreach my $i (@new_list[0..6]) { print " $i "; } print "\n";}
+		if (@prev_list){ foreach my $i (@prev_list[0..6]) { print " $i "; } print "\n";}
 
 		# MRU 판단
 		if ($no_index == -1)
 		{ 
-			print "[$gallery_name] compare article numbers to get MRU...\n" if $opt{debug};
-			$no_index = &determine_most_recent_page_number(\@new_list, \@prev_list);
+			$no_index = determine_most_recent_page_number(\@new_list, \@prev_list);
 			@prev_list = @new_list;
 
 			if ($no_index != -1) 
 			{
-				print "[$gallery_name] New article page no: $no_index\n" if $opt{debug};
+				print "[$gallery_name] New article : $new_list[$no_index]\n" if $opt{debug};
 			}
 			else
 			{
-				print "[$gallery_name] No new article. wait more...\n" if $opt{debug};
-                print "peeping at $gallery_name...\n" if $opt{debug};
-				sleep(5);
+                #print "[$gallery_name] No new article. wait more...\n" if $opt{debug};
+                #print "peeping at $gallery_name...\n" if $opt{debug};
+
+				sleep( 5 + int(rand(15)));  # sleep time 5 ~ 20 sec
 			} 
 			next;
 		} 
 
 		if (($prev_no != $new_list[$no_index]) and ($no_index != -1))
 		{
-			print "[$gallery_name] fetch a page : $new_list[$no_index]\n" if $opt{debug}; 
+			print "[$gallery_name] get a web page : $new_list[$no_index]\n" if $opt{debug}; 
 
             my $url = get_dcinside_address($gallery_name);
 			$url =  $url . "&no=" . $new_list[$no_index] . "&page=1";
@@ -395,14 +406,14 @@ sub monitor_and_get()
 	}
 }
 
-sub get_recent_number_list()
+sub get_recent_number_list
 {
 	my $gallery_name = shift;
     my $html_url;
 
     # dcinside는 페이지 이동이 잦음
     $html_url = get_dcinside_address($gallery_name);
-    print $html_url if $opt{debug};
+    #print "[get_recent_number_list] $html_url" if $opt{debug};
 
     my $mech = WWW::Mechanize->new();
 
@@ -416,7 +427,7 @@ sub get_recent_number_list()
     else {
         print STDERR $response->status_line, "\n";
     }
-	my $html_contents = &get_html_contents($html_url);
+	my $html_contents = get_html_contents($html_url);
     #print $html_contents;
 
     #
@@ -434,7 +445,7 @@ sub get_recent_number_list()
 
 
 
-sub determine_most_recent_page_number()
+sub determine_most_recent_page_number
 {
 	# reference of list
 	my ($no_list, $prev_no_list) = @_;
