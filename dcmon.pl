@@ -29,9 +29,6 @@ use Data::Dumper;
 #  print "This is libwww-perl-$LWP::VERSION\n";
 
 my $CFG_DCMON = "dcmon.cfg"; # fixed
-my $gallery_name;
-my $page_from;
-my $page_to;
 my $directory_name = "call_setup_directory";
 my %opt = ( "debug"=>1 );
 my %statistic = ();
@@ -50,8 +47,9 @@ if ($TEST == 1)
 else
 {
     show_usage();
-    run_dcmon_with_cfg();
+    load_cfg();
 }
+
 
 #http://gall.dcinside.com/board/view/?id=pad&no=227106&page=1
 # page 228546
@@ -123,25 +121,24 @@ sub scrape_links
 
 
 ###
-sub run_dcmon_with_cfg
+sub load_cfg
 {
-	open(CFG_IN, "<$CFG_DCMON");
-	my @lines = <CFG_IN>;
-	close(CFG_IN); 
+	open(my $CFG_IN, "<$CFG_DCMON");
+	my @lines = <$CFG_IN>;
+	close($CFG_IN); 
 
 	foreach my $gallery (@lines)
 	{
         next if $gallery =~ /^#/;
 		chomp $gallery;
 		#print $gallery;
-		run_dcmon_with_list($gallery);
+		do_fork($gallery);
 	}
 }
 
-sub run_dcmon_with_list
+sub do_fork
 {
 	my $gallery_name = shift;
-#	for my $i (@gall_list)
 	{
 		print "Monitoring $gallery_name\n"; 
 
@@ -173,7 +170,7 @@ sub show_usage
 {
 	print "dcmon: A small utility to monitor your favorite galleries.\n";
 	print "       Edit dcmon.cfg and run\n";
-	print "       by behemoth\@beneath.bastion\n\n";
+	print "       by berise\n\n";
 #	exit;
 }
 
@@ -185,7 +182,6 @@ sub find_and_get_images
 	my $url = shift;
 	my $html_contents = get_html_contents($url);
     #print $html_contents;
-
 
 	my $h_filenames =  scrape_href_links($html_contents);
 	my $h_links =  scrape_links($html_contents);
@@ -260,7 +256,9 @@ sub download_and_save_as
 	my ($filename, $link) = @_;
 	my $filename_p = encode('cp949', $filename);
 
-    my $HAVE_WGET = 0;
+    my $USE_WGET = 0;
+    my $USE_MECHANIZE = 0;
+    my $USE_LWP = 1;
 
 	# 저장할 위치 지정
     $filename_p = $directory_name . "/" . $filename_p; 
@@ -268,7 +266,7 @@ sub download_and_save_as
     # 위치를 고정하여 저장한다. .. 파일 보기가 편해서...
 	#$filename_p = "dcmon/temp/" . $filename_p; 
 
-    if ($HAVE_WGET eq 1)
+    if ($USE_WGET eq 1)
     {
         my $cmd_wget = "wget \"$link\"";
         print "Execute $cmd_wget\n";
@@ -276,18 +274,38 @@ sub download_and_save_as
         # download with wget
         system($cmd_wget);
     }
-    else
+    elsif ($USE_MECHANIZE eq 1)
     {
         #
         my $image = get($link);
 
         if (defined $image)
         {
-            open(OUT, ">$filename_p");
-            binmode OUT;
-            print OUT $image;
-            close(OUT); 
+            open(my $fh_out, ">$filename_p");
+            binmode $fh_out;
+            print $fh_out $image;
+            close($fh_out); 
         }
+
+   
+    } elsif ($USE_LWP eq 1) { # download with a LWP, ref : http://lotus.perl.kr/2012/01.html
+        my $ua = LWP::UserAgent->new( agent =>
+            'Mozilla/5.0'
+            .' (Windows; U; Windows NT 6.1; en-US; rv:1.9.2b1)'
+            .' Gecko/20091014 Firefox/3.6b1 GTB5'
+        );
+        my $res;
+        eval { $res = $ua->get($link); };
+        if ($@) {
+            warn $@;
+            # next;
+        }
+
+        open my $fh, ">", $filename_p;
+
+        binmode $fh;
+        print $fh $res->content;
+        close $fh;
     }
 
     my $filesize = -s $filename_p if -e $filename_p;
