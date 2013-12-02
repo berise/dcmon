@@ -20,8 +20,6 @@ use utf8;
 use LWP::Simple;
 use Encode;
 use WWW::Mechanize;
-
-use URI;
 use Web::Scraper;
 use Data::Dumper;
 
@@ -56,8 +54,8 @@ else
 sub test_1114
 {
 	my $no = -2;
-	my $prev_no = -1;
-    my $no_index = -1;
+	my $prev_index = -1;
+    my $curr_index = -1;
 	my @prev_list = ();
     my $gallery_name = "pad";
 
@@ -72,7 +70,7 @@ sub test_1114
     print $url;
 
     # save images and add to count
-    $image_count = find_and_get_images($url);
+    $image_count = find_and_get_images($gallery_name, $url);
 }
 
 
@@ -179,8 +177,8 @@ sub show_usage
 # TI : size of array
 sub find_and_get_images
 {
-	my $url = shift;
-	my $html_contents = get_html_contents($url);
+	my ($gallery_name, $url) = @_;
+	my $html_contents = get($url);
     #print $html_contents;
 
 	my $h_filenames =  scrape_href_links($html_contents);
@@ -188,6 +186,7 @@ sub find_and_get_images
 
     if (!defined($h_filenames))  # http://zzbang.dcinside.com/pad_temp.jpg is basic image for an article without any image attached
     {
+        print "[$gallery_name] No image was found\n" if $opt{debug};
         return ;
     }
 
@@ -195,13 +194,13 @@ sub find_and_get_images
 	my $link_count = @{$h_links};
 	my $image_count = 0;
 
-	print "# of files : ($file_count), # of links : ($link_count)\n" if $opt{debug};
+    #print "# of files : ($file_count), # of links : ($link_count)\n" if $opt{debug};
 	for(my $i = 0; $i < $file_count; $i++)
 	{
     	my $filename_p;
         $filename_p = encode('cp949', $h_filenames->[$i]);
         #print " - download $filename_p\n";
-        print "$h_filenames->[$i], $h_links->[$i]\n" if $opt{debug};
+        #print "$h_filenames->[$i], $h_links->[$i]\n" if $opt{debug};
 		download_and_save_as($h_filenames->[$i], $h_links->[$i]);
 	}
 
@@ -209,15 +208,10 @@ sub find_and_get_images
 }
 	
 
-sub get_html_contents
-{
-    my $url = shift;
-    #print "[get_html_contents] $url\n";
-	my $h_contents = get($url);
-
-	return $h_contents;
-}
-
+#
+# Web::Scraper sometimes died with a malicious formed html.
+# So here left old regex based parsing code.
+# WARNING : following code is not work anymore
 sub extract_filenames
 {
 	my $html_contents = shift;
@@ -230,7 +224,10 @@ sub extract_filenames
 	return @files;
 }
 
-
+#
+# Web::Scraper sometimes died with a malicious formed html.
+# So here left old regex based parsing code.
+# WARNING : following code is not work anymore
 sub extract_links
 {
 	my $html_contents = shift;
@@ -239,8 +236,7 @@ sub extract_links
 	my $pattern = "<li class=\"icon_pic\"><a href=\"(.*)\">.*?.*?<\/a>";
 	my @links = $html_contents =~ /$pattern/gi;
 
-	foreach my $link (@links) # $links
-    {
+	foreach my $link (@links) {
         print "extract_links : @links\n" if $opt{debug};
     }
 
@@ -276,7 +272,7 @@ sub download_and_save_as
     }
     elsif ($USE_MECHANIZE eq 1)
     {
-        #
+        # mechanize
         my $image = get($link);
 
         if (defined $image)
@@ -286,8 +282,6 @@ sub download_and_save_as
             print $fh_out $image;
             close($fh_out); 
         }
-
-   
     } elsif ($USE_LWP eq 1) { # download with a LWP, ref : http://lotus.perl.kr/2012/01.html
         my $ua = LWP::UserAgent->new( agent =>
             'Mozilla/5.0'
@@ -309,7 +303,7 @@ sub download_and_save_as
     }
 
     my $filesize = -s $filename_p if -e $filename_p;
-    print " + $directory_name/$filename_p($filesize Bytes)\n" if $opt{debug};
+    print " + $filename_p($filesize Bytes)\n" if $opt{debug};
 }
 
 
@@ -319,26 +313,22 @@ sub setup_directory
 	my $dcmon_dir = "dcmon";
 	$directory_name =  $dcmon_dir . "/" . $gallery_name;
 
-	if (-d $dcmon_dir)
-	{
-		print "$gallery_name Directory already exists.\n" if $opt{debug};
+	if (-d $dcmon_dir) {
+		print "$gallery_name already exists.\n" if $opt{debug};
 	}
-	else
-	{
-		print "Make directory $dcmon_dir.\n" if $opt{debug};
+	else {
+		print "Make a directory $dcmon_dir.\n" if $opt{debug};
 		mkdir($dcmon_dir);
 	}
 
-	unless (-d $directory_name)
-	{
+	unless (-d $directory_name) {
 		print "Make directory $directory_name.\n" if $opt{debug};
 		mkdir($directory_name);
 	}
-	else
-	{
+	else {
 		print "$directory_name Directory already exists\n" if $opt{debug};
 	}
-	print "set up directory for $directory_name is finished.\n" if $opt{debug};
+#	print "set up directory for $directory_name is finished.\n" if $opt{debug};
 }
 
 
@@ -357,8 +347,8 @@ sub monitor_and_get
 {
 	my $gallery_name = shift;
 	my $no = -2;
-	my $prev_no = -1;
-    my $no_index = -1;
+	my $prev_index = -1;
+    my $curr_index = -1;
 	my @prev_list = ();
 
 	# to print in status subroutine
@@ -370,56 +360,44 @@ sub monitor_and_get
 	{
 	    my $image_count = 0;
 		my @new_list = get_recent_number_list($gallery_name); 
+        #print "[$gallery_name] Article List : \n";
+        #if (@new_list) { foreach my $i (@new_list[0..6]) { print " $i "; } print "\n"; }
+        #if (@prev_list) { foreach my $i (@prev_list[0..6]) { print " $i "; } print "\n"; }
 
-		print "[$gallery_name] Article List : \n" if $opt{debug};
+		$curr_index = determine_most_recent_page_number(\@new_list, \@prev_list);
+		@prev_list = @new_list;
 
-		if (@new_list){ foreach my $i (@new_list[0..6]) { print " $i "; } print "\n";}
-		if (@prev_list){ foreach my $i (@prev_list[0..6]) { print " $i "; } print "\n";}
-
-		# MRU 판단
-		if ($no_index == -1)
-		{ 
-			$no_index = determine_most_recent_page_number(\@new_list, \@prev_list);
-			@prev_list = @new_list;
-
-			if ($no_index != -1) 
-			{
-				print "[$gallery_name] New article : $new_list[$no_index]\n" if $opt{debug};
-			}
-			else
-			{
-                #print "[$gallery_name] No new article. wait more...\n" if $opt{debug};
-                #print "peeping at $gallery_name...\n" if $opt{debug};
-
-				sleep( 5 + int(rand(15)));  # sleep time 5 ~ 20 sec
-			} 
-			next;
-		} 
-
-		if (($prev_no != $new_list[$no_index]) and ($no_index != -1))
+    	if ($curr_index != -1) 
 		{
-			print "[$gallery_name] get a web page : $new_list[$no_index]\n" if $opt{debug}; 
+			print "[$gallery_name] New article : $new_list[$curr_index]\n" if $opt{debug};
+		}
+		else
+        {
+            my $sleep_time = 5 + int(rand(15));
+            print "[$gallery_name] wait...($sleep_time)\n" if $opt{debug};
+            my $sign = length($gallery_name);
+
+            sleep($sleep_time);  # sleep time 5 ~ 20 sec
+			next;
+        } 
+
+
+		if (($prev_index != $curr_index) and ($curr_index != -1))
+		{
+			print "[$gallery_name] get a web page : $new_list[$curr_index]\n" if $opt{debug}; 
 
             my $url = get_dcinside_address($gallery_name);
-			$url =  $url . "&no=" . $new_list[$no_index] . "&page=1";
+			$url =  $url . "&no=" . $new_list[$curr_index] . "&page=1";
 
 			# save images and add to count
-			$image_count = find_and_get_images($url);
-			$prev_no = $new_list[$no_index]; 
+			$image_count = find_and_get_images($gallery_name, $url);
+
+            # update index
+			$prev_index = $curr_index; 
 		}
 
-		# sleep between 3 ~ 11 seconds
-		my $sleep_time = 3 + int(rand(8));
-		
-#	if ($image_count > 0)
-#	{
-#		$statistic{$gallery_name} += $image_count;
-#		print "|$gallery_name]\t\t" . "#" x $image_count . "\tTotal : $statistic{$gallery_name}\n";
-#		print " : $gallery_name/$new_list[$no_index]:" . "+" x $image_count . "\n";
-#	}
-#
-#    $image_count = 0;   # reset
-
+        print "[$gallery_name] index = $curr_index,  no = $new_list[$curr_index]\n" if $opt{debug};
+		my $sleep_time = sleep( 5 + int(rand(15)));  # sleep time 5 ~ 20 sec
 		sleep($sleep_time); 
 	}
 }
@@ -445,22 +423,15 @@ sub get_recent_number_list
     else {
         print STDERR $response->status_line, "\n";
     }
-	my $html_contents = get_html_contents($html_url);
+	my $html_contents = get($html_url);
     #print $html_contents;
 
-    #
-	#$html_contents = "<a href=/board/view/?id=game_classic&no=412061&page=1&bbs=";
-	# (jpg|~~~)*?은 확장자가 없어도 이름 추출이 가능함 "99aa0--a"
-    # scrap을 사용하는 것이 좀 더 깨끗해질 것!
+    # get article numbers
 	my $pattern = "id=" . $gallery_name . "&no=(\\d+)&page=\\d+";#/.*?<\/a>";
 	my @list = $response->decoded_content =~ /$pattern/gi;
 
-    #print @list;
-    #foreach my $i (@list) { print "$i " if $opt{debug}; } print "\n";
-
 	return @list;
 }
-
 
 
 sub determine_most_recent_page_number
@@ -470,7 +441,6 @@ sub determine_most_recent_page_number
 	my $mru_index = -1;
 
     #print "MRU @{$no_list}, @{$prev_no_list}\n";
-	#print scalar(@{$prev_no_list});
 	if (@{$prev_no_list})
 	{
 		my $list_size = scalar(@{$no_list});
