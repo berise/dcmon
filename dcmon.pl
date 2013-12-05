@@ -16,12 +16,14 @@
 use strict;
 use warnings;
 use utf8;
+use feature qw(say);
 
 use LWP::Simple;
 use Encode;
 use WWW::Mechanize;
 use Web::Scraper;
 use Data::Dumper;
+use threads;
 
 
 #  print "This is libwww-perl-$LWP::VERSION\n";
@@ -124,14 +126,22 @@ sub load_cfg
 	open(my $CFG_IN, "<$CFG_DCMON");
 	my @lines = <$CFG_IN>;
 	close($CFG_IN); 
+    my @threads;
 
-	foreach my $gallery (@lines)
+	foreach my $gallery_name (@lines)
 	{
-        next if $gallery =~ /^#/;
-		chomp $gallery;
-		#print $gallery;
-		do_fork($gallery);
+        next if $gallery_name =~ /^#/;
+		chomp $gallery_name;
+	    setup_directory($gallery_name);
+
+		print "Monitoring $gallery_name\n"; 
+
+        my $thread = threads->create(\&run_dcmon_with_given_name, $gallery_name);
+        push(@threads, $thread);
 	}
+    foreach my $t (@threads) {
+        $t->join();
+    }
 }
 
 sub do_fork
@@ -139,14 +149,7 @@ sub do_fork
 	my $gallery_name = shift;
 	{
 		print "Monitoring $gallery_name\n"; 
-
-		# run this script
-		my $pid = fork(); 
-		if ($pid == 0)
-		{
-			run_dcmon_with_given_name($gallery_name);
-			exit;
-		} 
+        my $thread = threads->create(\&run_dcmon_with_given_name, $gallery_name);
 	}
 }
 
@@ -156,9 +159,7 @@ sub run_dcmon_with_given_name
 {
 	my $gallery_name = shift;
 
-	#print $gallery_name;
-	setup_directory($gallery_name);
-
+	print "[run_dcmon_with_given_name] $gallery_name\n";
 	# monitor and get
 	monitor_and_get($gallery_name);
 }
@@ -186,7 +187,7 @@ sub find_and_get_images
 
     if (!defined($h_filenames))  # http://zzbang.dcinside.com/pad_temp.jpg is basic image for an article without any image attached
     {
-        print "[$gallery_name] No image was found\n" if $opt{debug};
+        print "[$gallery_name] No image\n" if $opt{debug};
         return ;
     }
 
@@ -326,7 +327,7 @@ sub setup_directory
 		mkdir($directory_name);
 	}
 	else {
-		print "$directory_name Directory already exists\n" if $opt{debug};
+		print "Directory named $directory_name already exists\n" if $opt{debug};
 	}
 #	print "set up directory for $directory_name is finished.\n" if $opt{debug};
 }
@@ -355,6 +356,7 @@ sub monitor_and_get
 	$statistic{$gallery_name} = 0;
 	my $image_count = 0;
 
+    print "[monitor_and_get]\n";
 
 	while(1)
 	{
@@ -374,7 +376,7 @@ sub monitor_and_get
 		else
         {
             my $sleep_time = 5 + int(rand(15));
-            print "[$gallery_name] wait...($sleep_time)\n" if $opt{debug};
+            print "[$gallery_name] wait...($sleep_time sec)\n" if $opt{debug};
             my $sign = length($gallery_name);
 
             sleep($sleep_time);  # sleep time 5 ~ 20 sec
