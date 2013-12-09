@@ -199,7 +199,7 @@ sub find_and_get_images
 	for(my $i = 0; $i < $file_count; $i++)
 	{
     	my $filename_p;
-        $filename_p = encode('cp949', $h_filenames->[$i]);
+        #$filename_p = encode('cp949', $h_filenames->[$i]);
         #print " - download $filename_p\n";
         #print "$h_filenames->[$i], $h_links->[$i]\n" if $opt{debug};
 		download_and_save_as($h_filenames->[$i], $h_links->[$i]);
@@ -251,7 +251,15 @@ sub extract_links
 sub download_and_save_as
 {
 	my ($filename, $link) = @_;
-	my $filename_p = encode('cp949', $filename);
+	my $OS_type = $^O;
+	my $filename_p = $filename;
+
+	if ($OS_type =~ /MS/) {
+		$filename_p = encode('cp949', $filename);
+	}
+	else {
+		$filename_p = $filename;
+	}
 
     my $USE_WGET = 0;
     my $USE_MECHANIZE = 0;
