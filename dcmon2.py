@@ -161,7 +161,8 @@ class Robot():
         except selenium.common.exceptions.NoSuchElementException:
             return
 
-    def get_page_no(self, url, list):
+    def get_page_no(self, url):
+        list = []
         self.web_driver.get(url)
 
         # css path to thread
@@ -184,7 +185,9 @@ class Robot():
                         logging.info("pass on non numeric element %s", e1.text)
 
         except selenium.common.exceptions.NoSuchElementException:
-            return
+            return list
+
+        return list
 
     def compare_no(self, l1, l2):
         for i in range(len(l1)):
@@ -195,11 +198,14 @@ class Robot():
     def monitor_and_get(self, url):
         list1 = []
         list2 = []
-        self.get_page_no(url, list1)
+        list1 = self.get_page_no(url)
         list2 = list1
 
         while(1):
-            self.get_page_no(url, list2)
+            list2 = self.get_page_no(url)
+
+            if list2 is None:
+                pass
 
             new_article_list = list(set(list2) - set(list1))
             #new_no = self.compare_no(list1, list2)
