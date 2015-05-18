@@ -133,24 +133,58 @@ class Monitor():
         return sb_driver
 
 
-    def browse_category_and_collect(self, url):
+    def get_page_no(self, url):
         start_page = 1
-        #
-        curr_url = url
-        next_page = start_page + 1
-        while True:
-            self.collect_apk_urls(self.web_driver, curr_url)
+        no_lists = []
 
-            logging.info("[collect_urls] URL(page) : %s(%d), " % (curr_url, next_page))
-            logging.info("[collect_urls] collected url count : %d" % len(self.app_urls))
-            pprint.pprint(self.app_urls)
+        self.web_driver.get(url)
 
-            (ret, next_url) = self.get_next_page(self.web_driver, next_page)
-            if ret:
-                curr_url = next_url
-                next_page += 1
+        dom_thread = self.web_driver.find_element_by_css_selector('#dgn_gallery_left > div.gallery_list > div.list_table > table > thead')
+
+        dom_trs = dom_thread.find_elements_by_tag_name('tr')
+
+        ##dgn_gallery_left > div.gallery_list > div.list_table > table > thead > tr:nth-child(2) > td.t_notice
+        for dom_tr in dom_trs:
+            try:
+                # first t_notice is not a number
+                e1 = dom_tr.find_element_by_class_name('t_notice')
+            except:
+                logging.error("simply pass on non numeric")
             else:
-                break
+                #print (e1.text)
+                if is_digit(e1.text):
+                    no_lists.append(int(e1.text))
+
+        return no_lists
+
+    def compare_no(self, l1, l2):
+        for i in range(len(l1)):
+            if l1[i] != l2[i]:
+                return i
+        return -1
+
+    def monitor_and_get(self, url):
+        list1 = []
+        list2 = []
+        list1 = self.get_page_no(url)
+
+        while(1):
+            list2 = self.get_page_no(url)
+
+            new_article_list = list(set(list1) - set(list2))
+            #new_no = self.compare_no(list1, list2)
+            list1 = list2
+
+            # to make a full url
+            #http://gall.dcinside.com/board/view/?id=game_classic&no=6349933&page=1
+            for i in new_article_list:
+            #target_url = "{0}&no={1}&page=1".format(kGALLERIES[0], i)
+                target_url = "http://gall.dcinside.com/board/view/?id=game_classic&no={0}&page=1".format(i)
+                print (target_url)
+                #self.download_if_attached(target_url)
+
+            time.sleep(random.randrange(2, 3))
+
 
     def collect_apk_urls(self, web_driver, url):
         web_driver.get(url)
@@ -166,12 +200,11 @@ class Monitor():
         except:
             logging.info("[collect_apk_urls] find_element_by_css_selector failed.")
 
-
     def download_if_attached(self, url):
         self.web_driver.get(url)
         #logging.info("Wait for 3 seconds till web page download")
 
-        WebDriverWait(self.web_driver, 3)
+        #WebDriverWait(self.web_driver, 3)
 
         ul_elements = self.web_driver.find_element_by_css_selector('#dgn_content_de > div.re_gall_box_3 > div > ul')
 
@@ -183,9 +216,7 @@ class Monitor():
             print (a.text)
             a.click()
             time.sleep(random.randrange(1, 2))
-            #href = a.get_attribute('href')
-            #print (href)
-            #href.click()
+
 
         # wait a file being downloaded for 3 seconds.
         # make it a longer if file is broken
@@ -559,7 +590,7 @@ def process_agruments():
 
     parser.add_argument('-u', '--url',          dest='get_url', default=None, action="store_true", help='monitor a given url')
     parser.add_argument('-t', '--test-url', dest='test_url', default=None, action="store_true", help='test run with a given url')
-    parser.add_argument('-l', '--location',     dest='location',action="store", help='Location to put files')
+    parser.add_argument('-d', '--directory',     dest='directory',action="store", help='directory to put files')
     #parser.add_argument('-v', '--version',   dest='version',  default=None,   action="store_true", help='show program revision')
 
 
@@ -613,10 +644,12 @@ if __name__ == "__main__":
     #verify_options(args)
 
     args.test_url = kGALLERIES[0]
-    args.location = 'test_dir'
-    mon = Monitor(args.test_url, args.location)
+    args.directory = 'test_dir'
+    mon = Monitor(args.test_url, args.directory)
     args.test_url = "http://gall.dcinside.com/board/view/?id=game_classic&no=6329821&page=1"
-    mon.test_url(args.test_url)
+    #mon.test_url(args.test_url)
+
+    mon.monitor_and_get('http://gall.dcinside.com/board/view/?id=game_classic')
 
     #mon.close_selenium()
 #   if args.get_url:
