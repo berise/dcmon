@@ -92,9 +92,10 @@ class Robot():
         if not os.path.exists(temp_download_dir):
             os.makedirs(temp_download_dir)
 
-        self.chrome_options = {}
-        self.chrome_options['download_folder'] = temp_download_dir
-        self.web_driver = self.init_selenium_driver("chrome", self.chrome_options)
+        self.browser_options = {}
+        self.browser_options['download_folder'] = os.path.abspath(temp_download_dir)
+        #self.web_driver = self.init_selenium_driver("chrome", self.browser_options)
+        self.web_driver = self.init_selenium_driver("firefox", self.browser_options)
 
 
     def close_selenium(self):
@@ -111,10 +112,13 @@ class Robot():
         sb_driver = None
         if (browser_type == "firefox"):
             fp = webdriver.FirefoxProfile()
-            fp.set_preference("browser.download.folderList", 1)
-            #fp.set_preference("browser.download.manager.showWhenStarting", False)
+
+            fp.set_preference("browser.download.manager.showWhenStarting", False)
             fp.set_preference("browser.download.panel.shown", False)
-            #fp.set_preference("browser.download.dir", os.getcwd())
+
+            fp.set_preference("browser.download.folderList", 2)  # 2 implicitg custom location
+            fp.set_preference("browser.download.dir", options['download_folder'])
+
             fp.set_preference("browser.helperApps.neverAsk.saveToDisk", "text/csv")
             fp.set_preference("browser.helperApps.neverAsk.openFile", "application/octet-stream")
             fp.set_preference("browser.helperApps.neverAsk.saveToDisk", "application/octet-stream")
@@ -179,10 +183,8 @@ class Robot():
                         logging.error("t_notice is not found")
                 else:
                     #print (e1.text)
-                    if is_digit(e1.text):
-                        list.append(int(e1.text))
-                    else:
-                        logging.info("pass on non numeric element %s", e1.text)
+                    list.append(e1.text)
+
 
         except selenium.common.exceptions.NoSuchElementException:
             return list
@@ -204,12 +206,16 @@ class Robot():
         while(1):
             list2 = self.get_page_no(url)
 
-            if list2 is None:
-                pass
+            if len(list2) < len(list1):     # something wrong
+                logging.info("list2 length is not shorter than list1")
+                continue
+            if len(list1) != len(list2):      # also fail  to read whole web contents... ???
+                logging.info("list2 length is not same to list1")
+                continue
 
+            print(list1)
+            print(list2)
             new_article_list = list(set(list2) - set(list1))
-            #new_no = self.compare_no(list1, list2)
-
 
             # to make a full url
             #http://gall.dcinside.com/board/view/?id=game_classic&no=6349933&page=1
@@ -223,10 +229,12 @@ class Robot():
 
                 target_url = "http://gall.dcinside.com/board/view/?id=game_classic&no={0}&page=1".format(i)
                 print (target_url)
-                self.download_if_attached(target_url)
+                self.do_robot_click(target_url)
+                #self.download_if_attached(target_url)
 
             # update list
             list1 = list2
+            logging.info("update list1")
 
             # sleep little time
             time.sleep(random.randrange(2, 3))
@@ -236,37 +244,45 @@ class Robot():
         """
         attached file css path : #dgn_content_de > div.re_gall_box_3 > div > ul
         XPATH : //*[@id="dgn_content_de"]/div[5]/div/ul
-
-        :param url:
-        :return:
         """
         self.web_driver.get(url)
-        #logging.info("Wait for 3 seconds till web page download")
-
+        #logging.info("Wait for 3 seconds till web page download completed")
         #WebDriverWait(self.web_driver, 3)
 
+
         file_css_selectors = [ '#dgn_content_de > div.re_gall_box_3 > div > ul' ]
+        css = '#dgn_content_de > div.re_gall_box_3 > div > ul'
         #file_xpath_selectors = [ '//*[@id="dgn_content_de"]/div[5]/div/ul' ]
 
+        #ul_elements = None
         try:
-            for css in file_css_selectors:
-                ul_elements = self.web_driver.find_element_by_css_selector(css)
+            #for css in file_css_selectors:
+            ul_elements = self.web_driver.find_element_by_css_selector(css)
 
         except selenium.common.exceptions.NoSuchElementException:
             return
         else:
-            lis = ul_elements.find_elements_by_tag_name('li')
-            #print (lis)
+            #https://code.google.com/p/selenium/issues/detail?id=2766
+            # Find an element and define it
+            #WebElement elementToClick = driver.findElement(By.xpath("some xpath"));
+            #// Scroll the browser to the element's Y position
+            #((JavascriptExecutor) driver).executeScript("window.scrollTo(0,"+elementToClick.getLocation().y+")");
+            #// Click the element
+            #elementToClick.click();
 
+            lis = ul_elements.find_elements_by_tag_name('li')
+
+            logging.info("found a links")
             for li in lis:
                 a = li.find_element_by_tag_name('a')
 
-            a.click()
-            #time.sleep(random.randrange(1, 2))
-            #except:
-            #    logging.error("%s : no such css element", url)
+                #// Scroll the browser to the element's Y position
+                self.web_driver.execute_script("window.scrollTo(0,"+str(a.location['y'])+")")
+                logging.info("click on a file attachment link : %s", a.text)
+                a.click()
+                #time.sleep(1)
 
-            #try:
+        #try:
         # for xpath in file_xpath_selectors:
         #     ul_elements = self.web_driver.find_element_by_xpath(xpath)
         #
@@ -288,33 +304,7 @@ class Robot():
 
         #self.web_driver.close()
 
-
-    def get_next_page(self, web_driver, next_page):
-        """
-            @brief Find paging elements in html and go to next page
-        """
-
-        try:
-            page_elements = web_driver.find_element_by_css_selector('#softListBox > div.page_box > div')
-            #print page_elements
-
-            paging_elements = page_elements.find_elements_by_tag_name('a')
-
-            for e in paging_elements:
-                logging.info("[get_next_page] Looking for the next page index/href %s:%s", e.text, e.get_attribute('href'))
-
-                if is_digit(e.text):
-                    page_n = int(e.text)
-                    if next_page == page_n:
-                        return (True, e.get_attribute('href'))
-                        #e.click()
-        except:
-            logging.info("[get_next_page] find_element_by_css_selector failed.")
-
-        return (False, None)
-
-
-    def test_url(self, url):
+    def do_robot_click(self, url):
         ###
         logging.info("[downloader] start a user action thread")
 
@@ -356,15 +346,7 @@ class Robot():
     """
     def simulate_user_action(self, url):
         logging.info("[simulate_user_action] opening : %s", url)
-
-        #try:
         self.download_if_attached(url)
-        #except:
-        #     logging.error("Browser Page load timed out")
-             #reset the page for the next test
-             #web_driver.get("about:blank")
-        #     return False
-
         logging.info("[simulate_user_action] exit thread")
 
 
@@ -558,9 +540,13 @@ def test_url():
         ###
         logging.info("[downloader] start a user action thread")
         mon = Robot('', '')
-        test_url = "http://gall.dcinside.com/board/view/?id=game_classic&no=6329821&page=1"
 
-        mon.test_url(test_url)
+        urls = [ "http://gall.dcinside.com/board/view/?id=game_classic&no=6329821&page=1",
+                 "http://gall.dcinside.com/board/view/?id=game_classic&no=6388291&page=1"
+                 ]
+        for url in urls:
+            #mon.do_robot_click(url)
+            mon.download_if_attached(url)
 
 def test_gallery_name():
         gname = 'http://gall.dcinside.com/board/view/?id=game_classic'
