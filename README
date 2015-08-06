@@ -12,3 +12,10 @@ usages is simple.
 1. edit dcmon.cfg(give a proper gallery name per each line)
 (if you need names of galleries then visit dcinside.com)
 2. run dcmon.pl.
+
+---
+dcmon(Python version)
+
+dcmon2.py requiresselenium package.
+$ python dcmon2.py
+$
