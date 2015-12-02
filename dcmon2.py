@@ -75,6 +75,12 @@ class Robot():
     downloaded_files = Queue.Queue()
 
     def __init__(self, gall_name, location):
+        """
+
+        :rtype: object
+        """
+
+        self.gall_list = {}
         self.kGALLERY_NAME = gall_name
         self.kLOCATION = location
 
@@ -164,6 +170,42 @@ class Robot():
 
         except selenium.common.exceptions.NoSuchElementException:
             return
+
+    def get(self, url):
+        self.web_driver.get(url)
+        selector_1 = '#gallerlist'
+
+        try:
+            iframe = self.web_driver.find_element_by_css_selector(selector_1)
+            print(iframe)
+            containerFrame = self.web_driver.find_element_by_css_selector(selector_1)
+
+
+            self.web_driver.switch_to_frame(containerFrame)
+            print(containerFrame)
+
+
+            div_gall_list = self.web_driver.find_element_by_css_selector('#gall_list')
+            print(div_gall_list)
+
+            lists = div_gall_list.find_elements_by_class_name('list_title')
+
+            for l in lists:
+                t = l.get_attribute('text')
+                a = l.get_attribute('href')
+                #print("{0} -> {1}".format(t, a))
+
+                self.gall_list[l.text] = a
+
+            print(self.gall_list)
+
+
+            self.web_driver.switch_to_default_content()
+
+        except selenium.common.exceptions.NoSuchElementException:
+            print("no such element")
+
+
 
     def get_page_no(self, url):
         list = []
@@ -518,7 +560,7 @@ def process_agruments():
 
     if len(sys.argv)<=1:
         parser.print_help()
-        sys.exit(1)
+        #sys.exit(1)
 
     (args) = parser.parse_args()
     logging.info(program_description)
@@ -554,6 +596,14 @@ def test_gallery_name():
         mon = Robot('', '')
         mon.monitor_and_get(gname)
 
+def collect_gallery_urls():
+        seed_url = 'http://gall.dcinside.com'
+
+        r = Robot('', '')
+        r.get(seed_url)
+
+
+
 def test_new_tab():
     gname = 'http://gall.dcinside.com/board/view/?id=game_classic'
     mon = Robot('', '')
@@ -575,17 +625,8 @@ def test_new_tab():
 
 
 
-
-
-if __name__ == "__main__":
-    kGALLERIES  = [
-            "http://gall.dcinside.com/board/view/?id=game_classic"
-        ]
-
-    kGALLERY_NAME = ""
-
-    ## setup log
-    log_filename = "{0}_{1}".format(kGALLERIES[0], datetime.datetime.now().strftime('%Y_%m_%d_%M_%H.log'))
+def init_log():
+    log_filename = "{0}_{1}".format("dcmon", datetime.datetime.now().strftime('%Y_%m_%d_%M_%H.log'))
     log_filename = os.path.join(tempfile.gettempdir(), log_filename)
 
     LOGGING_LEVEL = logging.INFO  # Modify if you just want to focus on errors
@@ -605,9 +646,22 @@ if __name__ == "__main__":
     #logging.getLogger('').addHandler(console)
     #logging.info("Logging to file  : %s", log_filename)
 
+
+if __name__ == "__main__":
+
+    init_log()
+
+    kGALLERIES  = [
+            "http://gall.dcinside.com/board/view/?id=game_classic"
+        ]
+
+    ## setup log
+
+
     args = process_agruments()
     #verify_options(args)
 
     #test_url()
-    test_gallery_name()
+    #test_gallery_name()
     #test_new_tab()
+    collect_gallery_urls()
