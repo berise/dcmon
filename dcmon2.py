@@ -24,6 +24,7 @@ import berlib
 import urlparse
 import shutil
 import random
+import json
 
 
 # util
@@ -171,7 +172,7 @@ class Robot():
         except selenium.common.exceptions.NoSuchElementException:
             return
 
-    def get(self, url):
+    def get_seed_urls(self, url):
         self.web_driver.get(url)
         selector_1 = '#gallerlist'
 
@@ -205,6 +206,9 @@ class Robot():
         except selenium.common.exceptions.NoSuchElementException:
             print("no such element")
 
+
+    def get_url(self, text):
+        return self.gall_list[text]
 
 
     def get_page_no(self, url):
@@ -590,17 +594,39 @@ def test_url():
             #mon.do_robot_click(url)
             mon.download_if_attached(url)
 
-def test_gallery_name():
-        gname = 'http://gall.dcinside.com/board/view/?id=game_classic'
 
-        mon = Robot('', '')
-        mon.monitor_and_get(gname)
+def test_gallery_name():
+    gname = 'http://gall.dcinside.com/board/view/?id=game_classic'
+
+    mon = Robot('', '')
+    mon.monitor_and_get(gname)
 
 def collect_gallery_urls():
-        seed_url = 'http://gall.dcinside.com'
+    gall_list = 'gall_list.json'
 
+
+
+    if os.path.exists(gall_list) == False:
+        #get_seed_url
+        #write_json
         r = Robot('', '')
-        r.get(seed_url)
+        seed_url = 'http://gall.dcinside.com'
+        r.get_seed_urls(seed_url)
+
+        with open(gall_list,  'w') as f:
+            json.dump(r.gall_list, f)
+    else:
+        with open(gall_list,  'r') as f:
+            gd = json.load(f)
+
+
+        print(gd)
+        print gd[u'고전게임']
+
+
+
+
+
 
 
 
