@@ -549,16 +549,19 @@ class Robot():
         return button_clicked
 
 
-def process_agruments():
+def parse_arguments():
     # append parent path
     #git_info = git_revision_info.git_revision_info()
 
     program_description = "dcmon2 -- rev" #.%s" % (git_rev.git_rev().get_git_info())
     parser = argparse.ArgumentParser(description = program_description)
 
-    parser.add_argument('-u', '--url',          dest='get_url', default=None, action="store_true", help='monitor a given url')
-    parser.add_argument('-t', '--test-url', dest='test_url', default=None, action="store_true", help='test run with a given url')
-    parser.add_argument('-d', '--directory',     dest='directory',action="store", help='directory to put files')
+    parser.add_argument('-m', '--monitor',          dest='monitor', default=None, action="store_true", help='monitor with a given url')
+    parser.add_argument('-l', '--list-galleries',     dest='list',action="store", help='list urls of galleries')
+    parser.add_argument('-r', '--dry-run',     dest='dry_run',action="store", help='directory to put files')
+
+    #
+    parser.add_argument('-t', '--test-url', dest='test_function1', default=None, action="store_true", help='test run with a given url')
     #parser.add_argument('-v', '--version',   dest='version',  default=None,   action="store_true", help='show program revision')
 
 
@@ -567,22 +570,26 @@ def process_agruments():
         #sys.exit(1)
 
     (args) = parser.parse_args()
-    logging.info(program_description)
+    #logging.info(program_description)
 
     return args
 
 # conditions to exit
-def verify_options(options):
-    if options.get_url:
-        print ("get url")
+def do_jobs(options):
+    if options.list:
+        print ("get urls of galleries")
+        collect_gallery_urls()
 
-    if options.get_apk:
-        print ("get apk")
+    if options.test_function1:
+        test_function1()
 
+    if options.monitor:
+        gname = 'http://gall.dcinside.com/board/view/?id=game_classic'
+        monitor_gallery(gname)
 
 
 """ monitor and collect """
-def test_url():
+def test_function1():
         ###
         logging.info("[downloader] start a user action thread")
         mon = Robot('', '')
@@ -595,16 +602,13 @@ def test_url():
             mon.download_if_attached(url)
 
 
-def test_gallery_name():
-    gname = 'http://gall.dcinside.com/board/view/?id=game_classic'
+def monitor_gallery(gname):
 
     mon = Robot('', '')
     mon.monitor_and_get(gname)
 
 def collect_gallery_urls():
     gall_list = 'gall_list.json'
-
-
 
     if os.path.exists(gall_list) == False:
         #get_seed_url
@@ -619,17 +623,10 @@ def collect_gallery_urls():
         with open(gall_list,  'r') as f:
             gd = json.load(f)
 
+#        print(gd)
+#        print gd[u'고전게임']
 
-        print(gd)
-        print gd[u'고전게임']
-
-
-
-
-
-
-
-
+# selenium doesn't support for tab in browser. please see doc in seleniumhq.org
 def test_new_tab():
     gname = 'http://gall.dcinside.com/board/view/?id=game_classic'
     mon = Robot('', '')
@@ -674,20 +671,12 @@ def init_log():
 
 
 if __name__ == "__main__":
-
     init_log()
 
     kGALLERIES  = [
             "http://gall.dcinside.com/board/view/?id=game_classic"
         ]
-
     ## setup log
 
-
-    args = process_agruments()
-    #verify_options(args)
-
-    #test_url()
-    #test_gallery_name()
-    #test_new_tab()
-    collect_gallery_urls()
+    args = parse_arguments()
+    do_jobs(args)
