@@ -70,20 +70,15 @@ class ThreadWorker(threading.Thread):
 
 class Robot():
     """
-    kGALLERY_NAME = "given as an arg"
+    kGALLERY_URL = "given as an arg"
     """
 
     downloaded_files = Queue.Queue()
 
-    def __init__(self, gall_name, location):
-        """
-
-        :rtype: object
-        """
-
+    def __init__(self, gall_url, id):
         self.gall_list = {}
-        self.kGALLERY_NAME = gall_name
-        self.kLOCATION = location
+        self.kGALLERY_URL = gall_url
+        self.kLOCATION = id
 
 
         self.start_urls = [
@@ -95,14 +90,15 @@ class Robot():
         # find out current module(exeuctable) path and set to temporary download dir
         # where we'll watch
         collector_current_path = module_locator.module_path()
-        temp_download_dir = os.path.join(collector_current_path, 'dn_' + location)
+        temp_download_dir = os.path.join(collector_current_path, 'dn_' + id)
         if not os.path.exists(temp_download_dir):
+            logging.info("make a download dir : %s", temp_download_dir)
             os.makedirs(temp_download_dir)
 
         self.browser_options = {}
         self.browser_options['download_folder'] = os.path.abspath(temp_download_dir)
-        #self.web_driver = self.init_selenium_driver("chrome", self.browser_options)
-        self.web_driver = self.init_selenium_driver("firefox", self.browser_options)
+        self.web_driver = self.init_selenium_driver("chrome", self.browser_options)
+        #self.web_driver = self.init_selenium_driver("firefox", self.browser_options)
 
 
     def close_selenium(self):
@@ -275,8 +271,8 @@ class Robot():
 
                 target_url = "http://gall.dcinside.com/board/view/?id=game_classic&no={0}&page=1".format(i)
                 print (target_url)
-                self.do_robot_click(target_url)
-                #self.download_if_attached(target_url)
+                #self.do_threaded_click(target_url)
+                self.download_if_attached(target_url)
 
             # update list
             list1 = list2
@@ -318,15 +314,22 @@ class Robot():
 
             lis = ul_elements.find_elements_by_tag_name('li')
 
-            logging.info("found a links")
+            logging.info("found links")
+
+            for li in lis:
+                logging.info("  %s", li.find_element_by_tag_name('a').text)
+
             for li in lis:
                 a = li.find_element_by_tag_name('a')
 
                 #// Scroll the browser to the element's Y position
-                self.web_driver.execute_script("window.scrollTo(0,"+str(a.location['y'])+")")
-                logging.info("click on a file attachment link : %s", a.text)
+                self.web_driver.execute_script("window.scrollTo(0,"+str(a.location['y'])+"*0.5)")
+                logging.info("click on a link : %s", a.text)
                 a.click()
-                #time.sleep(1)
+
+                # Note. on chrome, a.click method takes a little bit more time than
+                # in firefox. Chrome seems that it is likely to download all elements before
+                # proceed click action.
 
         #try:
         # for xpath in file_xpath_selectors:
@@ -350,7 +353,7 @@ class Robot():
 
         #self.web_driver.close()
 
-    def do_robot_click(self, url):
+    def do_threaded_click(self, url):
         ###
         logging.info("[downloader] start a user action thread")
 
@@ -584,28 +587,31 @@ def do_jobs(options):
         test_function1()
 
     if options.monitor:
-        gname = 'http://gall.dcinside.com/board/view/?id=game_classic'
-        monitor_gallery(gname)
+        gall_url = 'http://gall.dcinside.com/board/view/?id=game_classic'
+        monitor_gallery(gall_url, 'game_classic')
 
 
 """ monitor and collect """
 def test_function1():
         ###
         logging.info("[downloader] start a user action thread")
-        mon = Robot('', '')
 
         urls = [ "http://gall.dcinside.com/board/view/?id=game_classic&no=6329821&page=1",
                  "http://gall.dcinside.com/board/view/?id=game_classic&no=6388291&page=1"
                  ]
+
+        mon = Robot('', 'game_classic')
         for url in urls:
-            #mon.do_robot_click(url)
-            mon.download_if_attached(url)
+            mon.do_threaded_click(url)
+            #mon.download_if_attached(url)
 
 
-def monitor_gallery(gname):
+def monitor_gallery(gall_url, id):
 
-    mon = Robot('', '')
-    mon.monitor_and_get(gname)
+    mon = Robot(gall_url, id)
+    mon.monitor_and_get(mon.kGALLERY_URL)
+    # this will be
+    # mon.monitor_and_get()
 
 def collect_gallery_urls():
     gall_list = 'gall_list.json'
