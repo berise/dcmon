@@ -97,6 +97,10 @@ class Robot():
 
         self.browser_options = {}
         self.browser_options['download_folder'] = os.path.abspath(temp_download_dir)
+
+        # option --browser firefox
+        # option -c -f -???
+        # on linux, firefox causes an error when clicking links with delays.
         self.web_driver = self.init_selenium_driver("chrome", self.browser_options)
         #self.web_driver = self.init_selenium_driver("firefox", self.browser_options)
 
@@ -278,7 +282,7 @@ class Robot():
             list1 = list2
             logging.info("update list1")
 
-            # sleep little time
+            # take a sleep for little bit
             time.sleep(random.randrange(2, 3))
 
 
@@ -324,7 +328,8 @@ class Robot():
 
                 #// Scroll the browser to the element's Y position
                 self.web_driver.execute_script("window.scrollTo(0,"+str(a.location['y'])+"*0.5)")
-                logging.info("click on a link : %s", a.text)
+                #logging.info("click on a link : %s(%s)", a.text, a.find_element_by_link_text(a.text))
+                logging.info("click on a link : %s(%s)", a.text, a.get_attribute("href"))
                 a.click()
 
                 # Note. on chrome, a.click method takes a little bit more time than
@@ -596,14 +601,30 @@ def test_function1():
         ###
         logging.info("[downloader] start a user action thread")
 
-        urls = [ "http://gall.dcinside.com/board/view/?id=game_classic&no=6329821&page=1",
+        urls = [ "http://gall.dcinside.com/board/view/?id=game_classic&no=11036580&page=1"
                  "http://gall.dcinside.com/board/view/?id=game_classic&no=6388291&page=1"
                  ]
 
+
+        # Error on parsing elements
+        """Traceback (most recent call last):
+          File "dcmon2.py", line 689, in <module>
+          do_jobs(args)
+          File "dcmon2.py", line 592, in do_jobs
+          monitor_gallery(gall_url, 'game_classic')
+          File "dcmon2.py", line 613, in monitor_gallery
+          mon.monitor_and_get(mon.kGALLERY_URL)
+          File "dcmon2.py", line 275, in monitor_and_get
+          self.download_if_attached(target_url)
+          File "dcmon2.py", line 302, in download_if_attached
+          ul_elements = self.web_driver.find_element_by_css_selector(css
+        """
+        urls = ['http://gall.dcinside.com/board/view/?id=game_classic&no=11037859&page=1']
+
         mon = Robot('', 'game_classic')
         for url in urls:
-            mon.do_threaded_click(url)
-            #mon.download_if_attached(url)
+            #mon.do_threaded_click(url)
+            mon.download_if_attached(url)
 
 
 def monitor_gallery(gall_url, id):
