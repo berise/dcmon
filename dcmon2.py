@@ -276,7 +276,17 @@ class Robot():
                 target_url = "http://gall.dcinside.com/board/view/?id=game_classic&no={0}&page=1".format(i)
                 print (target_url)
                 #self.do_threaded_click(target_url)
-                self.download_if_attached(target_url)
+
+                try:
+                    self.download_if_attached(target_url)
+                except:
+                    #logging.info("web page doesn't fully loaded")
+                    #logging.info("force to refresh")
+                    #self.web_driver.refresh()
+
+                    # or simply
+                    continue
+
 
             # update list
             list1 = list2
@@ -682,8 +692,8 @@ def init_log():
     LOGGING_LEVEL = logging.INFO  # Modify if you just want to focus on errors
     logging.basicConfig(level=LOGGING_LEVEL,
                     format='%(asctime)s %(levelname)-8s %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S'),
-                    #filename = log_filename)
+                    datefmt='%Y-%m-%d %H:%M:%S',
+                    filename = log_filename)
 
     # define a Handler which writes INFO messages or higher to the sys.stderr
     console = logging.StreamHandler()
