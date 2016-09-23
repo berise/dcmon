@@ -20,11 +20,30 @@ import argparse
 import sys
 import datetime
 import tempfile
-import berlib
 import urlparse
 import shutil
 import random
 import json
+import inspect
+
+
+
+reload(sys)
+sys.setdefaultencoding('utf-8')
+# global logger
+logger = logging.getLogger("dcmon_logger")
+
+
+def debug(msg):
+    frame,filename,line_number,function_name,lines,index=inspect.getouterframes(
+        inspect.currentframe())[1]
+    line=lines[0]
+    indentation_level=line.find(line.lstrip())
+    logger.debug('{i} [{m}]'.format(
+        i='.'*indentation_level,
+        m=msg
+        ))
+
 
 
 # util
@@ -58,7 +77,7 @@ class ThreadWorker(threading.Thread):
         self.setDaemon(True)
 
     def run(self):
-        logging.info("running thread %s" % threading.current_thread())
+        logging.debug("running thread %s" % threading.current_thread())
 
         try:
             self.callable(*self.args, **self.kwargs)
@@ -92,7 +111,7 @@ class Robot():
         collector_current_path = module_locator.module_path()
         temp_download_dir = os.path.join(collector_current_path, 'dn_' + id)
         if not os.path.exists(temp_download_dir):
-            logging.info("make a download dir : %s", temp_download_dir)
+            debug("make a download dir : %s", temp_download_dir)
             os.makedirs(temp_download_dir)
 
         self.browser_options = {}
@@ -151,26 +170,21 @@ class Robot():
 
         # css path to thread
         #'#dgn_gallery_left > div.gallery_list > div.list_table > table > thead'
+        dom_thread = self.web_driver.find_element_by_css_selector('#dgn_gallery_left > div.gallery_list > div.list_table > table > thead')
+        dom_trs = dom_thread.find_elements_by_tag_name('tr')
 
-        try:
-            dom_thread = self.web_driver.find_element_by_css_selector('#dgn_gallery_left > div.gallery_list > div.list_table > table > thead')
-            dom_trs = dom_thread.find_elements_by_tag_name('tr')
-
-            for dom_tr in dom_trs:
-                try:
-                    # first t_notice is not a number
-                    e1 = dom_tr.find_element_by_class_name('t_notice')
-                except:
-                        logging.error("t_notice is not found")
+        for dom_tr in dom_trs:
+            try:
+                # first t_notice is not a number
+                e1 = dom_tr.find_element_by_class_name('t_notice')
+            except:
+                    debug("t_notice is not found")
+            else:
+                #print (e1.text)
+                if is_digit(e1.text):
+                    list.append(int(e1.text))
                 else:
-                    #print (e1.text)
-                    if is_digit(e1.text):
-                        list.append(int(e1.text))
-                    else:
-                        logging.info("pass on non numeric element %s", e1.text)
-
-        except selenium.common.exceptions.NoSuchElementException:
-            return
+                    debug("pass on non numeric element %s", e1.text)
 
     def get_seed_urls(self, url):
         self.web_driver.get(url)
@@ -253,44 +267,28 @@ class Robot():
             list2 = self.get_page_no(url)
 
             if len(list2) < len(list1):     # something wrong
-                logging.info("list2 length is not shorter than list1")
+                debug("list2 length is not shorter than list1")
                 continue
             if len(list1) != len(list2):      # also fail  to read whole web contents... ???
-                logging.info("list2 length is not same to list1")
+                debug("list2 length is not same to list1")
                 continue
 
-            print(list1)
-            print(list2)
+            debug(list1)
+            debug(list2)
             new_article_list = list(set(list2) - set(list1))
 
-            # to make a full url
-            #http://gall.dcinside.com/board/view/?id=game_classic&no=6349933&page=1
-            if new_article_list:
-                print (new_article_list)
             for i in new_article_list:
-            #target_url = "{0}&no={1}&page=1".format(kGALLERIES[0], i)
-            # down in a new tab
-                #body = self.web_driver.find_element_by_tag_name("body")
-                #ActionChains(self.web_driver).send_keys(Keys.CONTROL, "t").perform()
-
+                # to make a full url
+                #http://gall.dcinside.com/board/view/?id=game_classic&no=6349933&page=1
                 target_url = "http://gall.dcinside.com/board/view/?id=game_classic&no={0}&page=1".format(i)
                 print (target_url)
                 #self.do_threaded_click(target_url)
-
-                try:
-                    self.download_if_attached(target_url)
-                except:
-                    #logging.info("web page doesn't fully loaded")
-                    #logging.info("force to refresh")
-                    #self.web_driver.refresh()
-
-                    # or simply
-                    continue
+                self.download_if_attached(target_url)
 
 
             # update list
             list1 = list2
-            logging.info("update list1")
+            debug("update list1")
 
             # take a sleep for little bit
             time.sleep(random.randrange(2, 3))
@@ -302,7 +300,7 @@ class Robot():
         XPATH : //*[@id="dgn_content_de"]/div[5]/div/ul
         """
         self.web_driver.get(url)
-        #logging.info("Wait for 3 seconds till web page download completed")
+        #debug("Wait for 3 seconds till web page download completed")
         #WebDriverWait(self.web_driver, 3)
 
 
@@ -328,20 +326,23 @@ class Robot():
 
             lis = ul_elements.find_elements_by_tag_name('li')
 
-            logging.info("found links")
-
             for li in lis:
-                logging.info("  %s", li.find_element_by_tag_name('a').text)
-
-            for li in lis:
+                is_move_to_link = False
                 a = li.find_element_by_tag_name('a')
 
                 #// Scroll the browser to the element's Y position
-                self.web_driver.execute_script("window.scrollTo(0,"+str(a.location['y'])+"*0.5)")
-                #logging.info("click on a link : %s(%s)", a.text, a.find_element_by_link_text(a.text))
-                logging.info("click on a link : %s(%s)", a.text, a.get_attribute("href"))
-                a.click()
+                if is_move_to_link:
+                    self.web_driver.execute_script("window.scrollTo(0,"+str(a.location['y'])+"*2)")
+                    is_move_to_link = True
+                #debug("click on a link : %s(%s)", a.text, a.find_element_by_link_text(a.text))
+                msg = "click : {0}({1})".format(a.text, a.get_attribute("href"))
+                debug(msg)
 
+                try:
+                    a.click()
+                except selenium.common.exceptions.ElementNotVisibleException:
+                    debug("ElementNotVisibleException")
+                    continue
                 # Note. on chrome, a.click method takes a little bit more time than
                 # in firefox. Chrome seems that it is likely to download all elements before
                 # proceed click action.
@@ -370,7 +371,7 @@ class Robot():
 
     def do_threaded_click(self, url):
         ###
-        logging.info("[downloader] start a user action thread")
+        debug("[downloader] start a user action thread")
 
         thread_simulator = ThreadWorker(self.simulate_user_action, url )
         thread_simulator.start()
@@ -409,9 +410,10 @@ class Robot():
 
     """
     def simulate_user_action(self, url):
-        logging.info("[simulate_user_action] opening : %s", url)
+        msg = "[simulate_user_action] opening : {0}".format(url)
+        debug(msg)
         self.download_if_attached(url)
-        logging.info("[simulate_user_action] exit thread")
+        debug("[simulate_user_action] exit thread")
 
 
     def hover_on_button(self, web_driver):
@@ -420,7 +422,7 @@ class Robot():
         dn_selectors = [ 'body > div.full_bg > div.wrapper > div.show_main > div.show_top.clearfix > div.app_info > div.app_download.clearfix > div:nth-child(1) > a'
                          ]
         try:
-            logging.info("[hover_on_button] action hovering")
+            debug("[hover_on_button] action hovering")
             for dn in dn_selectors:
                 download_button = web_driver.find_element_by_css_selector(dn)
                 mouse_hover = ActionChains(web_driver).move_to_element(download_button).click().move_to_element_with_offset(download_button, 3, 3).click()
@@ -434,7 +436,7 @@ class Robot():
 
 
     def click_button(self, web_driver, css_selector):
-        logging.info("[click_button] try to find a css selector : %s", css_selector)
+        debug("[click_button] try to find a css selector : %s", css_selector)
 
         button_clicked = False
         #raise exception_class(message, screen, stacktrace)
@@ -445,11 +447,11 @@ class Robot():
                 #web_driver.move_to_element(hidden_button).move_to_element_with_offset(hidden_button, 5, 5).move_to_element_with_offset(hidden_button, 0, 0).click()
                 hidden_button.click()
                 button_clicked = True
-                logging.info("[click_button] trying to click on : %s", css_selector)
+                debug("[click_button] trying to click on : %s", css_selector)
 
                 return button_clicked
         except:
-            logging.info("[click_button] %s is not a valid css selector", css_selector)
+            debug("[click_button] %s is not a valid css selector", css_selector)
             return False
         else:
             button_clicked = True
@@ -457,7 +459,7 @@ class Robot():
 
 
     def click_button_css(self, web_driver):
-        logging.info("[click_button_css]")
+        debug("[click_button_css]")
 
 
         css_selectors = ['#webInnerContent > div > div.detail_right > div.code_box_border > div:nth-child(10)',
@@ -472,22 +474,22 @@ class Robot():
         for cs in css_selectors:
             try:
                 hidden_button = web_driver.find_element_by_css_selector(cs)
-                logging.info("[click_button] trying : %s", cs)
+                debug("[click_button] trying : %s", cs)
                 if hidden_button:
                     #web_driver.move_to_element(hidden_button).move_to_element_with_offset(hidden_button, 5, 5).move_to_element_with_offset(hidden_button, 0, 0).click()
                     hidden_button.click()
                     button_clicked = True
             except:
-                logging.info("[click_button] %s is not a valid css selector", cs)
+                debug("[click_button] %s is not a valid css selector", cs)
             else:
                 button_clicked = True
-                logging.info("[click_button] clicked : %s", cs)
+                debug("[click_button] clicked : %s", cs)
                 return button_clicked
 
 
 
     def click_button_xpath(self, web_driver, xpath):
-        logging.info("[click_button_xpath]")
+        debug("[click_button_xpath]")
 
         button_clicked = False
         #raise exception_class(message, screen, stacktrace)
@@ -499,22 +501,22 @@ class Robot():
                 #web_driver.move_to_element(hidden_button).move_to_element_with_offset(hidden_button, 5, 5).move_to_element_with_offset(hidden_button, 0, 0).click()
                 hidden_button.click()
                 button_clicked = True
-                logging.info("[click_button_xpath] trying to click on : %s", xpath)
+                debug("[click_button_xpath] trying to click on : %s", xpath)
 
                 return button_clicked
         except:
-            logging.info("[click_button_xpath] %s is not a valid", xpath)
+            debug("[click_button_xpath] %s is not a valid", xpath)
             return False
         else:
             button_clicked = True
             return button_clicked
 
         # if not clicked, return False to let caller know this failed
-        #logging.info("[click_button] click return value : %d", button_clicked)
+        #debug("[click_button] click return value : %d", button_clicked)
         return button_clicked
 
     def simulate_user_action_2(self, web_driver, url):
-        logging.info("[simulate_user_action_2] open url : %s", url)
+        debug("[simulate_user_action_2] open url : %s", url)
         web_driver.get(url)
 
         # jquery??mouse over event�??�해 ?�운로드 버튼??보임
@@ -524,7 +526,7 @@ class Robot():
                          'body > div.full_bg > div.wrapper > div.show_main > div.show_top.clearfix > div.app_info > div.app_download.clearfix > div:nth-child(1)'
                          ]
         try:
-            logging.info("[simulate_user_action_2] action hovering")
+            debug("[simulate_user_action_2] action hovering")
             for dn in dn_selectors:
                 download_button = web_driver.find_element_by_css_selector(dn)
                 mouse_hover = ActionChains(web_driver).move_to_element(download_button).move_to_element_with_offset(download_button, 3, 3)
@@ -554,13 +556,13 @@ class Robot():
                 hidden_button = web_driver.find_element_by_css_selector(cs)
                 if hidden_button:
                     hidden_button.click()
-                    logging.info("[simulate_user_action_2] trying to click on : %s", cs)
+                    debug("[simulate_user_action_2] trying to click on : %s", cs)
                     button_clicked = True
             except:
-                logging.info("[simulate_user_action_2] No css selector")
+                debug("[simulate_user_action_2] No css selector")
                 pass
             else:
-                logging.info("[simulate_user_action_2] clicked on : %s", cs)
+                debug("[simulate_user_action_2] clicked on : %s", cs)
                 break
 
             # if not clicked, return False to let caller know this failed
@@ -588,7 +590,7 @@ def parse_arguments():
         #sys.exit(1)
 
     (args) = parser.parse_args()
-    #logging.info(program_description)
+    #debug(program_description)
 
     return args
 
@@ -609,7 +611,7 @@ def do_jobs(options):
 """ monitor and collect """
 def test_function1():
         ###
-        logging.info("[downloader] start a user action thread")
+        debug("[downloader] start a user action thread")
 
         urls = [ "http://gall.dcinside.com/board/view/?id=game_classic&no=11036580&page=1"
                  "http://gall.dcinside.com/board/view/?id=game_classic&no=6388291&page=1"
@@ -629,12 +631,14 @@ def test_function1():
           File "dcmon2.py", line 302, in download_if_attached
           ul_elements = self.web_driver.find_element_by_css_selector(css
         """
-        urls = ['http://gall.dcinside.com/board/view/?id=game_classic&no=11037859&page=1']
+        urls = ['http://gall.dcinside.com/board/view/?id=game_classic&no=11100512&page=1']
 
         mon = Robot('', 'game_classic')
         for url in urls:
             #mon.do_threaded_click(url)
             mon.download_if_attached(url)
+
+        mon.close_selenium()
 
 
 def monitor_gallery(gall_url, id):
@@ -686,10 +690,11 @@ def test_new_tab():
 
 
 def init_log():
-    log_filename = "{0}_{1}".format("dcmon", datetime.datetime.now().strftime('%Y_%m_%d_%M_%H.log'))
-    log_filename = os.path.join(tempfile.gettempdir(), log_filename)
 
-    LOGGING_LEVEL = logging.INFO  # Modify if you just want to focus on errors
+    log_filename = "{0}_{1}".format("dcmon", datetime.datetime.now().strftime('%Y_%m_%d_%M_%H.log'))
+    #log_filename = gettempdir(), log_filename)
+
+    LOGGING_LEVEL = logging.DEBUG  # Modify if you just want to focus on errors
     logging.basicConfig(level=LOGGING_LEVEL,
                     format='%(asctime)s %(levelname)-8s %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S',
@@ -697,14 +702,16 @@ def init_log():
 
     # define a Handler which writes INFO messages or higher to the sys.stderr
     console = logging.StreamHandler()
-    console.setLevel(logging.INFO)
+    console.setLevel(logging.DEBUG)
     # set a format which is simpler for console use
     formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(message)s')
     # tell the handler to use this format
     console.setFormatter(formatter)
+    logger.addHandler(console)
+
     # add the handler to the root logger
     #logging.getLogger('').addHandler(console)
-    #logging.info("Logging to file  : %s", log_filename)
+    #debug("Logging to file  : %s", log_filename)
 
 
 if __name__ == "__main__":
