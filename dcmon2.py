@@ -38,9 +38,9 @@ def debug(msg):
     frame,filename,line_number,function_name,lines,index=inspect.getouterframes(
         inspect.currentframe())[1]
     line=lines[0]
-    indentation_level=line.find(line.lstrip())
+    indentation_level=line.find(line.lstrip())/2
     logger.debug('{i} [{m}]'.format(
-        i='.'*indentation_level,
+        i=' '*indentation_level,
         m=msg
         ))
 
@@ -227,29 +227,25 @@ class Robot():
 
     def get_page_no(self, url):
         list = []
+        #self.web_driver.implicitly_wait(5)
         self.web_driver.get(url)
 
         # css path to thread
         #'#dgn_gallery_left > div.gallery_list > div.list_table > table > thead'
-        try:
-            dom_thread = self.web_driver.find_element_by_css_selector('#dgn_gallery_left > div.gallery_list > div.list_table > table > thead')
-            dom_trs = dom_thread.find_elements_by_tag_name('tr')
+        dom_thread = self.web_driver.find_element_by_css_selector('#dgn_gallery_left > div.gallery_list > div.list_table > table > thead')
+        dom_trs = dom_thread.find_elements_by_tag_name('tr')
 
-            for dom_tr in dom_trs:
-                try:
-                    # first t_notice is not a number
-                    e1 = dom_tr.find_element_by_class_name('t_notice')
-                except:
-                        logging.error("t_notice is not found")
-                else:
-                    #print (e1.text)
-                    list.append(e1.text)
+        for dom_tr in dom_trs:
+            try:
+                # first t_notice is not a number
+                e1 = dom_tr.find_element_by_class_name('t_notice')
+            except:
+                    logging.error("t_notice is not found")
+            else:
+                #print (e1.text)
+                list.append(e1.text)
 
 
-        except selenium.common.exceptions.NoSuchElementException:
-            return list
-
-        return list
 
     def compare_no(self, l1, l2):
         for i in range(len(l1)):
@@ -260,38 +256,55 @@ class Robot():
     def monitor_and_get(self, url):
         list1 = []
         list2 = []
+
+
         list1 = self.get_page_no(url)
         list2 = list1
 
         while(1):
-            list2 = self.get_page_no(url)
+            try:
+                list2 = self.get_page_no(url)
 
-            if len(list2) < len(list1):     # something wrong
-                debug("list2 length is not shorter than list1")
-                continue
-            if len(list1) != len(list2):      # also fail  to read whole web contents... ???
-                debug("list2 length is not same to list1")
-                continue
+                if len(list2) < len(list1):     # something wrong
+                    debug("list2 length is not shorter than list1")
+                    debug("override list1")
+                    list1 = list2   # simply override previous list
+                    continue
+                if len(list1) != len(list2):      # also fail  to read whole web contents... ???
+                    debug("list2 length is not same to list1")
+                    debug("override list1")
+                    list1 = list2   # simply override previous list
+                    continue
 
-            debug(list1)
-            debug(list2)
-            new_article_list = list(set(list2) - set(list1))
+                debug(list1)
+                debug(list2)
+                new_article_list = list(set(list2) - set(list1))
+                debug("new article(s)")
+                debug(new_article_list)
 
-            for i in new_article_list:
-                # to make a full url
-                #http://gall.dcinside.com/board/view/?id=game_classic&no=6349933&page=1
-                target_url = "http://gall.dcinside.com/board/view/?id=game_classic&no={0}&page=1".format(i)
-                print (target_url)
-                #self.do_threaded_click(target_url)
-                self.download_if_attached(target_url)
+                for i in new_article_list:
+                    # to make a full url
+                    #http://gall.dcinside.com/board/view/?id=game_classic&no=6349933&page=1
+                    target_url = "http://gall.dcinside.com/board/view/?id=game_classic&no={0}&page=1".format(i)
+                    print (target_url)
+                    #self.do_threaded_click(target_url)
+                    #try:
+                    self.download_if_attached(target_url)
+                    #except:     # whatever it is, just skip.
+                    #    debug("Exception on download_if_attached: too many cases to describe")
+                    #    continue
 
 
-            # update list
-            list1 = list2
-            debug("update list1")
+                # update list
+                list1 = list2
+                debug("update list1")
 
-            # take a sleep for little bit
-            time.sleep(random.randrange(2, 3))
+                # take a sleep for little bit
+                time.sleep(random.randrange(2, 3))
+
+            except:
+                debug("Exception on monitor_and_get: too many cases to describe")
+                pass
 
 
     def download_if_attached(self, url):
@@ -299,6 +312,7 @@ class Robot():
         attached file css path : #dgn_content_de > div.re_gall_box_3 > div > ul
         XPATH : //*[@id="dgn_content_de"]/div[5]/div/ul
         """
+        self.web_driver.implicitly_wait(5)
         self.web_driver.get(url)
         #debug("Wait for 3 seconds till web page download completed")
         #WebDriverWait(self.web_driver, 3)
@@ -308,44 +322,30 @@ class Robot():
         css = '#dgn_content_de > div.re_gall_box_3 > div > ul'
         #file_xpath_selectors = [ '//*[@id="dgn_content_de"]/div[5]/div/ul' ]
 
-        #ul_elements = None
-        try:
             #for css in file_css_selectors:
-            ul_elements = self.web_driver.find_element_by_css_selector(css)
+        ul_elements = self.web_driver.find_element_by_css_selector(css)
 
-        except selenium.common.exceptions.NoSuchElementException:
-            return
-        else:
-            #https://code.google.com/p/selenium/issues/detail?id=2766
-            # Find an element and define it
-            #WebElement elementToClick = driver.findElement(By.xpath("some xpath"));
+        lis = ul_elements.find_elements_by_tag_name('li')
+
+        for li in lis:
+            is_move_to_link = False
+            a = li.find_element_by_tag_name('a')
+
             #// Scroll the browser to the element's Y position
-            #((JavascriptExecutor) driver).executeScript("window.scrollTo(0,"+elementToClick.getLocation().y+")");
-            #// Click the element
-            #elementToClick.click();
+            if is_move_to_link:
+                self.web_driver.execute_script("window.scrollTo(0,"+str(a.location['y'])+"*2)")
+                is_move_to_link = True
+            #debug("click on a link : %s(%s)", a.text, a.find_element_by_link_text(a.text))
+            msg = "click : {0}({1})".format(a.text, a.get_attribute("href"))
+            debug(msg)
 
-            lis = ul_elements.find_elements_by_tag_name('li')
+            a.click()
+            #except selenium.common.exceptions.ElementNotVisibleException:
 
-            for li in lis:
-                is_move_to_link = False
-                a = li.find_element_by_tag_name('a')
+            # Note. on chrome, a.click method takes a little bit more time than
+            # in firefox. Chrome seems that it is likely to download all elements before
+            # proceed click action.
 
-                #// Scroll the browser to the element's Y position
-                if is_move_to_link:
-                    self.web_driver.execute_script("window.scrollTo(0,"+str(a.location['y'])+"*2)")
-                    is_move_to_link = True
-                #debug("click on a link : %s(%s)", a.text, a.find_element_by_link_text(a.text))
-                msg = "click : {0}({1})".format(a.text, a.get_attribute("href"))
-                debug(msg)
-
-                try:
-                    a.click()
-                except selenium.common.exceptions.ElementNotVisibleException:
-                    debug("ElementNotVisibleException")
-                    continue
-                # Note. on chrome, a.click method takes a little bit more time than
-                # in firefox. Chrome seems that it is likely to download all elements before
-                # proceed click action.
 
         #try:
         # for xpath in file_xpath_selectors:
@@ -617,20 +617,6 @@ def test_function1():
                  "http://gall.dcinside.com/board/view/?id=game_classic&no=6388291&page=1"
                  ]
 
-
-        # Error on parsing elements
-        """Traceback (most recent call last):
-          File "dcmon2.py", line 689, in <module>
-          do_jobs(args)
-          File "dcmon2.py", line 592, in do_jobs
-          monitor_gallery(gall_url, 'game_classic')
-          File "dcmon2.py", line 613, in monitor_gallery
-          mon.monitor_and_get(mon.kGALLERY_URL)
-          File "dcmon2.py", line 275, in monitor_and_get
-          self.download_if_attached(target_url)
-          File "dcmon2.py", line 302, in download_if_attached
-          ul_elements = self.web_driver.find_element_by_css_selector(css
-        """
         urls = ['http://gall.dcinside.com/board/view/?id=game_classic&no=11100512&page=1']
 
         mon = Robot('', 'game_classic')
@@ -692,6 +678,7 @@ def test_new_tab():
 def init_log():
 
     log_filename = "{0}_{1}".format("dcmon", datetime.datetime.now().strftime('%Y_%m_%d_%M_%H.log'))
+    log_filename = "dcmon.log"
     #log_filename = gettempdir(), log_filename)
 
     LOGGING_LEVEL = logging.DEBUG  # Modify if you just want to focus on errors
