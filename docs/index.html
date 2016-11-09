@@ -1,5 +1,168 @@
-<p data-height="265" data-theme-id="0" data-slug-hash="bBdraL" data-default-tab="html,result" data-user="bbatta38" data-embed-version="2" data-pen-title="Kaonashi" class="codepen">See the Pen <a href="http://codepen.io/bbatta38/pen/bBdraL/">Kaonashi</a> by Byung soo Kim (<a href="http://codepen.io/bbatta38">@bbatta38</a>) on <a href="http://codepen.io">CodePen</a>.</p>
-<script async src="https://production-assets.codepen.io/assets/embed/ei.js"></script>
+<style>
+$color:#695573;
+$smile-eye:0.95;
+
+body {
+  margin:0;
+  padding:0;
+}
+
+#wrap {
+  height:100vh;
+  display:flex;
+  flex-wrap:wrap;
+  align-items: center;
+  justify-content:center;
+  background: linear-gradient(to bottom, rgba(39,188,196,1) 0%,rgba(129,212,226,1) 36%,rgba(84,177,211,1) 45%,rgba(10,147,201,1) 47%,rgba(41,137,216,1) 49%,rgba(35,150,221,1) 74%,rgba(125,185,232,1) 100%);
+}
+
+.kaonashi {
+  position:relative;
+  height:550px;
+  width:227px;
+  overflow:hidden;
+  animation:move 2s linear infinite alternate;
+  .head {
+    position:absolute;
+    left:47px;
+    width:130px;
+    height:200px;
+    background-color:rgba(0, 0, 0, 0.9);
+    border-radius:60% 60% 55% 55%/55% 55% 70% 70%;
+    z-index:10;
+    transform-style:preserve-3d;
+    transform-origin:50%;
+    perspective:50px;
+    transition:transform 1s;
+    &::after {
+      content:" ";
+      top:19px;
+      left:15px;
+      position:absolute;
+      width:100px;
+      height:163px;
+      border-radius:55% 55% 55% 55%/55% 55% 70% 70%;
+      box-shadow:inset -15px 0px 1px rgba(0, 0, 0, .1);
+      background-color:#fff;
+    }
+    .eye {
+      position:absolute;
+      top:78px;
+      left:23px;
+      width:25px;
+      height:15px;
+      background-color:rgba(0, 0, 0, 1);
+      border-radius:100% 100% 100% 100%/90% 100% 90% 100%;
+      transform:scale3d(1, 1, 1);
+      transform-style:preserve-3d;
+      transition:transform 1s;
+      z-index:20;
+      &::before {
+        content:" ";
+        position:absolute;
+        top:-35px;
+        left:6px;
+        width:14px;
+        height:27px;
+        background-color:$color;
+        opacity:.8;
+        border-radius:130% 70% 90% 90%/130% 100% 70% 70%;
+      }
+      &::after {
+        content:" ";
+        position:absolute;
+        top:29px;
+        left:5px;
+        width:14px;
+        height:41px;
+        background-color:$color;
+        opacity:.8;
+        border-radius:100% 140% 30% 250%/60% 100% 30% 200%;
+      }
+      .shadow {
+        width:20px;
+        height:7px;
+        background-color:#6c6c6c;
+        margin-top:18px;
+        margin-left:2px;
+        border-radius:50% 50% 100% 100%/ 50% 50% 200% 200%;
+        border:1px solid rgba(0, 0, 0, 1);
+        box-sizing:border-box;
+      }
+    }
+    .right {
+      left:83px;
+      transform:scale3d(-1, 1, 1);
+    }
+    .mouth {
+      position:absolute;
+      top:153px;
+      left:50px;
+      width:29px;
+      height:11px;
+      background-color:#000;
+      border-radius:40%;
+      z-index:20;
+      transform:scale3d(1, 1, 1);
+      transform-style:preserve-3d;
+      transition:border-radius .5s, transform .5s;
+      &::after {
+        content:" ";
+        position:absolute;
+        top:14px;
+        left:5px;
+        width:21px;
+        height:7px;
+        border-radius:100%;
+        background-color:#6d6d6d;
+      }
+    }
+  }
+  .body {
+    position:absolute;
+    top:15px;
+    left:0;
+    background:linear-gradient(to bottom, rgba(0,0,0,1) 0%,rgba(0,0,0,0.9) 40%, rgba(0,0,0,0) 65%);
+    width:227px;
+    height:800px;
+    border-radius:100%;
+  }
+  &:hover {
+    .head {
+      transform:rotateZ(-10deg);
+      .eye {
+        transform:scale3d(1, $smile-eye, 1);
+      }
+      .right {
+        transform:scale3d(-1, $smile-eye, 1);
+      }
+      .mouth {
+        border-radius:50% 50% 100% 100%/100% 100% 200% 200%;
+        transform:scale3d(1.3, 0.9, 1);
+      }
+    }
+  }
+}
+
+@keyframes move {
+  0% {
+    transform:translate(0, 0);
+  }
+  100% {
+    transform:translate(0, 10px);
+  }
+}
+
+@keyframes shake {
+  0% {
+    transform:rotate(0deg);
+  }
+  100% {
+    transform:rotate(-10deg);
+  }
+}
+  
+</style>
 
 
 <div id="wrap">
