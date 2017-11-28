@@ -6,18 +6,20 @@ This tools is for testing selenium's automation functionalities.
 
 Let script do the job and you just sit back.
 
-dcmon2.py requires selenium package. ~~And basically uses firefox.~~
+dcmon2.py requires selenium package.
 
 To run dcmon2 run following commands
-$ python dcmon2.py -m
-  - Yet, URL is hardcoded in dcmon2.py. so change it by yourself.
+
+    $ python dcmon2.py -m
+- URL is hardcoded in dcmon2.py. so change it by yourself, yet.
 
 selenium for python binding
 ===========================
 To install selenium please refer following page.
 https://pypi.python.org/pypi/selenium
 
-download selenium-3.7.0.tar.gz and install
+Download latest version and install
+ - selenium-3.x.0.tar.gz
 
 
 ChromeDriver - WebDriver for Chrome
@@ -30,7 +32,7 @@ https://sites.google.com/a/chromium.org/chromedriver/home
 
 You can download chromedriver from following link.
 https://sites.google.com/a/chromium.org/chromedriver/downloads
- - http://chromedriver.storage.googleapis.com/index.html?path=2.24/
+ - http://chromedriver.storage.googleapis.com/index.html?path=2.33/
 
 Download chromedriver and put them in the same directory of dcmon.
 
