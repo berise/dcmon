@@ -78,12 +78,12 @@ class Robot():
     def __init__(self, gall_url, id):
         self.gall_list = {}
         self.kGALLERY_URL = gall_url
-        self.kLOCATION = id
+        self.gallery_id = id
 
 
-        self.start_urls = [
-            "http://gall.dcinside.com/board/view/?id=game_classic&no=6329821&page=1"
-        ]
+        self.list_url = gall_url + id
+        self.view_url = self.list_url
+
 
         self.app_urls = {}
 
@@ -149,11 +149,10 @@ class Robot():
     def get_page_no(self, url, list):
         self.web_driver.get(url)
 
-        # css path to thread
-        #'#dgn_gallery_left > div.gallery_list > div.list_table > table > thead'
-
+        # 17.11
+        # dgn_gallery_left > div > div.list_table > table
         try:
-            dom_thread = self.web_driver.find_element_by_css_selector('#dgn_gallery_left > div.gallery_list > div.list_table > table > thead')
+            dom_thread = self.web_driver.find_element_by_css_selector('# dgn_gallery_left > div > div.list_table > table')
             dom_trs = dom_thread.find_elements_by_tag_name('tr')
 
             for dom_tr in dom_trs:
@@ -217,20 +216,34 @@ class Robot():
 
         # css path to thread
         #'#dgn_gallery_left > div.gallery_list > div.list_table > table > thead'
+
+
+        # 17.11.28
+        # dgn_gallery_left > div > div.list_table > table > tbody > tr.on > td.t_subject > a
+        # dgn_gallery_left > div > div.list_table > table
         try:
-            dom_thread = self.web_driver.find_element_by_css_selector('#dgn_gallery_left > div.gallery_list > div.list_table > table > thead')
+            dom_thread = self.web_driver.find_element_by_css_selector('#dgn_gallery_left > div > div.list_table > table')
             dom_trs = dom_thread.find_elements_by_tag_name('tr')
 
             for dom_tr in dom_trs:
                 try:
                     # first t_notice is not a number
-                    e1 = dom_tr.find_element_by_class_name('t_notice')
+                    dom_notice = dom_tr.find_element_by_class_name('t_notice')
                 except:
                         logging.error("t_notice is not found")
                 else:
                     #print (e1.text)
-                    list.append(e1.text)
+                    list.append(dom_notice.text)
+                    dom_td = dom_tr.find_element_by_class_name('t_subject')
 
+                    # 17.11
+                    # dgn_gallery_left > div.gallery_list > div.list_table > table > tbody > tr:nth-child(1) > td.t_subject > a
+                    dom_a_href = dom_td.find_element_by_tag_name('a')
+                    view_url = dom_a_href.get_attribute('href')
+                    t1 = urlparse.urlsplit(view_url)
+                    self.view_url = t1.scheme + "://" + t1.netloc + t1.path
+
+                    #print("%s(url:%s)" % (dom_notice.text, dom_a_href.get_attribute('href')))
 
         except selenium.common.exceptions.NoSuchElementException:
             return list
@@ -266,14 +279,14 @@ class Robot():
             # to make a full url
             #http://gall.dcinside.com/board/view/?id=game_classic&no=6349933&page=1
             if new_article_list:
-                print (new_article_list)
+                logging.info(new_article_list)
             for i in new_article_list:
             #target_url = "{0}&no={1}&page=1".format(kGALLERIES[0], i)
             # down in a new tab
                 #body = self.web_driver.find_element_by_tag_name("body")
                 #ActionChains(self.web_driver).send_keys(Keys.CONTROL, "t").perform()
 
-                target_url = "http://gall.dcinside.com/board/view/?id=game_classic&no={0}&page=1".format(i)
+                target_url = "{}?id={}&no={}&page=1".format(self.view_url, self.gallery_id, i)
                 print (target_url)
                 #self.do_threaded_click(target_url)
 
@@ -328,8 +341,7 @@ class Robot():
 
             lis = ul_elements.find_elements_by_tag_name('li')
 
-            logging.info("found links")
-
+            logging.info("found attachment links")
             for li in lis:
                 logging.info("  %s", li.find_element_by_tag_name('a').text)
 
@@ -339,34 +351,24 @@ class Robot():
                 #// Scroll the browser to the element's Y position
                 self.web_driver.execute_script("window.scrollTo(0,"+str(a.location['y'])+"*0.5)")
                 #logging.info("click on a link : %s(%s)", a.text, a.find_element_by_link_text(a.text))
-                logging.info("click on a link : %s(%s)", a.text, a.get_attribute("href"))
+                logging.info("click a link : %s(%s)", a.text, a.get_attribute("href"))
                 a.click()
+
+                # wait until file be seen on download directory
+                while True:
+                    a_path = os.path.join(self.browser_options['download_folder'], a.text)
+                    logging.info("see if %s exists", a_path)
+                    if os.path.isfile(a_path):
+                        logging.info("%s download complete", a.text)
+                        break
+                    else:
+                        time.sleep(random.randrange(1, 3))
+
 
                 # Note. on chrome, a.click method takes a little bit more time than
                 # in firefox. Chrome seems that it is likely to download all elements before
                 # proceed click action.
 
-        #try:
-        # for xpath in file_xpath_selectors:
-        #     ul_elements = self.web_driver.find_element_by_xpath(xpath)
-        #
-        # lis = ul_elements.find_elements_by_tag_name('li')
-        # #print (lis)
-        #
-        # for li in lis:
-        #     a = li.find_element_by_tag_name('a')
-        #
-        #     a.click()
-            #time.sleep(random.randrange(1, 2))
-        #except:
-        #    logging.error("%s : no such xpath element", url)
-
-
-        # wait a file being downloaded for 3 seconds.
-        # make it a longer if file is broken
-        #WebDriverWait(self.web_driver, 3)
-
-        #self.web_driver.close()
 
     def do_threaded_click(self, url):
         ###
@@ -602,12 +604,13 @@ def do_jobs(options):
         test_function1()
 
     if options.monitor:
-        gall_url = 'http://gall.dcinside.com/board/view/?id=game_classic'
-        monitor_gallery(gall_url, 'game_classic')
+        gallery_list_url = 'http://gall.dcinside.com/board/lists?id='
+        gallery_view_url = 'http://gall.dcinside.com/board/view/?id='
+        monitor_gallery(gallery_list_url, 'game_classic1')
 
 
 """ monitor and collect """
-def test_function1():
+def test_get_and_download():
         ###
         logging.info("[downloader] start a user action thread")
 
@@ -615,20 +618,6 @@ def test_function1():
                  "http://gall.dcinside.com/board/view/?id=game_classic&no=6388291&page=1"
                  ]
 
-
-        # Error on parsing elements
-        """Traceback (most recent call last):
-          File "dcmon2.py", line 689, in <module>
-          do_jobs(args)
-          File "dcmon2.py", line 592, in do_jobs
-          monitor_gallery(gall_url, 'game_classic')
-          File "dcmon2.py", line 613, in monitor_gallery
-          mon.monitor_and_get(mon.kGALLERY_URL)
-          File "dcmon2.py", line 275, in monitor_and_get
-          self.download_if_attached(target_url)
-          File "dcmon2.py", line 302, in download_if_attached
-          ul_elements = self.web_driver.find_element_by_css_selector(css
-        """
         urls = ['http://gall.dcinside.com/board/view/?id=game_classic&no=11037859&page=1']
 
         mon = Robot('', 'game_classic')
@@ -636,13 +625,32 @@ def test_function1():
             #mon.do_threaded_click(url)
             mon.download_if_attached(url)
 
+        mon.close_selenium()
 
-def monitor_gallery(gall_url, id):
+def test_refactoring1():
+    robot = Robot()
 
-    mon = Robot(gall_url, id)
-    mon.monitor_and_get(mon.kGALLERY_URL)
-    # this will be
-    # mon.monitor_and_get()
+    """
+    gall_id = 'aaa'
+    gall_url = '~~~~/list'
+    robot.set_config()
+        # get gall_view_url
+        view_url = robot.get_view_url()
+
+    robot.monitor(view_url)
+
+    """
+    for url in urls:
+        # mon.do_threaded_click(url)
+        mon.download_if_attached(url)
+
+    mon.close_selenium()
+
+
+def monitor_gallery(url_base, id):
+
+    mon = Robot(url_base, id)
+    mon.monitor_and_get(mon.list_url)
 
 def collect_gallery_urls():
     gall_list = 'gall_list.json'
@@ -703,17 +711,18 @@ def init_log():
     # tell the handler to use this format
     console.setFormatter(formatter)
     # add the handler to the root logger
-    #logging.getLogger('').addHandler(console)
-    #logging.info("Logging to file  : %s", log_filename)
+    logging.getLogger('').addHandler(console)
+    logging.info("Logging to file  : %s", log_filename)
 
 
 if __name__ == "__main__":
     init_log()
 
     kGALLERIES  = [
-            "http://gall.dcinside.com/board/view/?id=game_classic"
+            "game_classic",
+            "comedy_new1"
         ]
-    ## setup log
+
 
     args = parse_arguments()
     do_jobs(args)
