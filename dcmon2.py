@@ -355,14 +355,14 @@ class Robot():
                 a.click()
 
                 # wait until file be seen on download directory
-                while True:
+                for c in range(3):
                     a_path = os.path.join(self.browser_options['download_folder'], a.text)
-                    logging.info("see if %s exists", a_path)
+                    logging.info("[%d] see if %s exists",c , a_path)
                     if os.path.isfile(a_path):
                         logging.info("%s download complete", a.text)
                         break
                     else:
-                        time.sleep(random.randrange(1, 3))
+                        time.sleep(random.randrange(2, 4)) # 1d3+1
 
 
                 # Note. on chrome, a.click method takes a little bit more time than
